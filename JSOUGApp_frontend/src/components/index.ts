@@ -1,0 +1,1 @@
+export { Text, Button, Card } from 'react-native-paper'; 
