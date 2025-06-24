@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -27,25 +27,28 @@ export default function ProfileScreen({ navigation }: any) {
   const [pushNotification, setPushNotification] = useState(true);
   const [promoNotification, setPromoNotification] = useState(true);
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      setLoading(true);
-      const token = await getToken();
-      try {
-        const res = await axios.get('http://localhost:5000/api/moniteur/profile', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        console.log('Profile data received:', res.data);
-        console.log('Avatar path:', res.data.avatar);
-        setProfile(res.data);
-      } catch (err) {
-        console.error('Error fetching profile:', err);
-        Alert.alert('Error', 'Failed to load profile');
-      }
-      setLoading(false);
-    };
-    fetchProfile();
-  }, []);
+  const fetchProfile = async () => {
+    setLoading(true);
+    const token = await getToken();
+    try {
+      const res = await axios.get('http://localhost:5000/api/moniteur/profile', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log('Profile data received:', res.data);
+      console.log('Avatar path:', res.data.avatar);
+      setProfile(res.data);
+    } catch (err) {
+      console.error('Error fetching profile:', err);
+      Alert.alert('Error', 'Failed to load profile');
+    }
+    setLoading(false);
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchProfile();
+    }, [])
+  );
 
   const onEditPress = () => {
     navigation.navigate('EditProfile');

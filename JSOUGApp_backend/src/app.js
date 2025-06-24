@@ -10,6 +10,7 @@ app.use(express.json());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/moniteur', moniteurRoutes);
-app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
+console.log('Serving uploads from:', path.join(__dirname, '../uploads'));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 module.exports = app; 
