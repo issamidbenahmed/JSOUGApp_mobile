@@ -61,4 +61,101 @@ export async function resetPasswordWithToken(token: string, password: string) {
     body: JSON.stringify({ token, password }),
   });
   return res.json();
+}
+
+export async function changePassword(currentPassword: string, newPassword: string, token: string) {
+  const res = await fetch('http://localhost:5000/api/moniteur/change-password', {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+  return res.json();
+}
+
+// Récupérer tous les détails du moniteur
+export async function getMoniteurDetails(token: string) {
+  const res = await fetch('http://localhost:5000/api/moniteur/details', {
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  return res.json();
+}
+
+// Sauvegarder tous les détails du moniteur
+type CarPhoto = { photo_url: string };
+type Car = { model: string, transmission: string, fuel_type: string, price: number, photos: CarPhoto[] };
+export async function updateMoniteurDetails(data: {
+  licenses: { type: string }[],
+  locations: { place: string }[],
+  cars: Car[],
+  certificates: { photo_url: string }[],
+}, token: string) {
+  const res = await fetch('http://localhost:5000/api/moniteur/details', {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+// Upload d'une photo de voiture
+export async function uploadCarPhoto(carId: number, file: any, token: string) {
+  const formData = new FormData();
+  formData.append('carId', carId.toString());
+  formData.append('photo', {
+    uri: file.uri,
+    name: file.fileName || 'car.jpg',
+    type: file.type || 'image/jpeg',
+  } as any);
+  const res = await fetch('http://localhost:5000/api/moniteur/car-photo', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/json',
+    },
+    body: formData,
+  });
+  return res.json();
+}
+
+// Supprimer une photo de voiture
+export async function deleteCarPhoto(id: number, token: string) {
+  const res = await fetch(`http://localhost:5000/api/moniteur/car-photo/${id}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  return res.json();
+}
+
+// Upload d'un certificat
+export async function uploadCertificate(file: any, token: string) {
+  const formData = new FormData();
+  formData.append('photo', {
+    uri: file.uri,
+    name: file.fileName || 'certificate.jpg',
+    type: file.type || 'image/jpeg',
+  } as any);
+  const res = await fetch('http://localhost:5000/api/moniteur/certificate', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/json',
+    },
+    body: formData,
+  });
+  return res.json();
+}
+
+// Supprimer un certificat
+export async function deleteCertificate(id: number, token: string) {
+  const res = await fetch(`http://localhost:5000/api/moniteur/certificate/${id}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  return res.json();
 } 

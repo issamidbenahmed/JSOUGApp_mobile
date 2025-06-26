@@ -1,6 +1,13 @@
 const db = require('../config/db');
 const multer = require('multer');
 const path = require('path');
+const bcrypt = require('bcryptjs');
+const User = require('../models/user.model');
+const DrivingLicense = require('../models/driving_license.model');
+const Location = require('../models/location.model');
+const Car = require('../models/car.model');
+const CarPhoto = require('../models/car_photo.model');
+const Certificate = require('../models/certificate.model');
 
 // Multer setup for avatar uploads
 const storage = multer.diskStorage({
@@ -14,6 +21,15 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 exports.uploadAvatar = upload.single('avatar');
+
+const multerCarPhoto = multer({ storage, fileFilter: (req, file, cb) => {
+  if (file.mimetype.startsWith('image/')) cb(null, true);
+  else cb(new Error('Only images allowed'));
+}});
+const multerCertificate = multer({ storage, fileFilter: (req, file, cb) => {
+  if (file.mimetype.startsWith('image/')) cb(null, true);
+  else cb(new Error('Only images allowed'));
+}});
 
 exports.getMoniteurProfile = async (req, res) => {
   const moniteurId = req.user.id; // assuming JWT middleware sets req.user
@@ -61,6 +77,147 @@ exports.updateMoniteurProfile = async (req, res) => {
     res.json({ message: 'Profile updated', avatar: req.file ? '/uploads/' + req.file.filename : undefined });
   } catch (err) {
     console.error('Error in updateMoniteurProfile:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+exports.changePassword = async (req, res) => {
+  const moniteurId = req.user.id;
+  const { currentPassword, newPassword } = req.body;
+  try {
+    // 1. Récupérer l'utilisateur
+    const user = await User.findById(moniteurId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    // 2. Vérifier l'ancien mot de passe
+    const valid = await bcrypt.compare(currentPassword, user.password);
+    if (!valid) return res.status(400).json({ error: 'Current password is incorrect' });
+    // 3. Hasher le nouveau mot de passe
+    const hash = await bcrypt.hash(newPassword, 10);
+    // 4. Mettre à jour le mot de passe
+    await db.query('UPDATE users SET password = ? WHERE id = ?', [hash, moniteurId]);
+    res.json({ message: 'Password changed successfully' });
+  } catch (err) {
+    console.error('Error in changePassword:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+exports.getMoniteurDetails = async (req, res) => {
+  const moniteurId = req.user.id;
+  try {
+    // Permis
+    const licenses = await DrivingLicense.findByMoniteur(moniteurId);
+    // Locations
+    const locations = await Location.findByMoniteur(moniteurId);
+    // Voitures et leurs photos
+    const cars = await Car.findByMoniteur(moniteurId);
+    for (const car of cars) {
+      car.photos = await CarPhoto.findByCar(car.id);
+    }
+    // Certificats
+    const certificates = await Certificate.findByMoniteur(moniteurId);
+    res.json({ licenses, locations, cars, certificates });
+  } catch (err) {
+    console.error('Error in getMoniteurDetails:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+exports.updateMoniteurDetails = async (req, res) => {
+  const moniteurId = req.user.id;
+  const { licenses, locations, cars, certificates, price, description } = req.body;
+  try {
+    // Mettre à jour prix et description dans users
+    const fields = [];
+    const values = [];
+    if (price !== undefined) { fields.push('price = ?'); values.push(price); }
+    if (description !== undefined) { fields.push('description = ?'); values.push(description); }
+    if (fields.length) {
+      values.push(moniteurId);
+      await db.query(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, values);
+    }
+    // Permis
+    await DrivingLicense.removeAllForMoniteur(moniteurId);
+    if (Array.isArray(licenses)) {
+      for (const lic of licenses) {
+        await DrivingLicense.add(moniteurId, lic.type || lic);
+      }
+    }
+    // Locations
+    await Location.removeAllForMoniteur(moniteurId);
+    if (Array.isArray(locations)) {
+      for (const loc of locations) {
+        await Location.add(moniteurId, loc.place || loc);
+      }
+    }
+    // Voitures
+    await Car.removeAllForMoniteur(moniteurId);
+    if (Array.isArray(cars)) {
+      for (const car of cars) {
+        const carId = await Car.add(moniteurId, car.model || '', car.transmission || '', car.fuel_type || '', car.price || 0);
+        // Photos de voiture
+        if (Array.isArray(car.photos)) {
+          for (const photo of car.photos) {
+            await CarPhoto.add(carId, photo.photo_url || photo);
+          }
+        }
+      }
+    }
+    // Certificats
+    await Certificate.removeAllForMoniteur(moniteurId);
+    if (Array.isArray(certificates)) {
+      for (const cert of certificates) {
+        await Certificate.add(moniteurId, cert.photo_url || cert);
+      }
+    }
+    res.json({ message: 'Details updated' });
+  } catch (err) {
+    console.error('Error in updateMoniteurDetails:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+exports.uploadCarPhoto = [multerCarPhoto.single('photo'), async (req, res) => {
+  const { carId } = req.body;
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  if (!carId) return res.status(400).json({ error: 'Missing carId' });
+  const photo_url = '/uploads/' + req.file.filename;
+  try {
+    await CarPhoto.add(carId, photo_url);
+    res.json({ message: 'Car photo uploaded', photo_url });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+}];
+
+exports.deleteCarPhoto = async (req, res) => {
+  const { id } = req.params;
+  try {
+    await CarPhoto.remove(id);
+    res.json({ message: 'Car photo deleted' });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+exports.uploadCertificate = [multerCertificate.single('photo'), async (req, res) => {
+  const moniteurId = req.user.id;
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  const photo_url = '/uploads/' + req.file.filename;
+  try {
+    await Certificate.add(moniteurId, photo_url);
+    res.json({ message: 'Certificate uploaded', photo_url });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+}];
+
+exports.deleteCertificate = async (req, res) => {
+  const { id } = req.params;
+  try {
+    await Certificate.remove(id);
+    res.json({ message: 'Certificate deleted' });
+  } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
 }; 

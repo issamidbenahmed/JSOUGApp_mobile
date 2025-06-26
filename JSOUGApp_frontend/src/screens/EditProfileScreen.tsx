@@ -188,7 +188,7 @@ export default function EditProfileScreen() {
           secureTextEntry
         />
       </View>
-      <TouchableOpacity style={styles.changePasswordBtn} onPress={() => Alert.alert('Change Password')}>
+      <TouchableOpacity style={styles.changePasswordBtn} onPress={() => navigation.navigate('ChangePasswordScreen')}>
         <Text style={styles.changePasswordText}>Change Password</Text>
         <Icon name="arrow-right" size={20} color="#222" style={{ marginLeft: 8 }} />
       </TouchableOpacity>

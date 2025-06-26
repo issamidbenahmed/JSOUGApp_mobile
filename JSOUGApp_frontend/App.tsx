@@ -15,6 +15,8 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import CustomDrawerContent from './src/components/CustomDrawerContent';
 import { Linking } from 'react-native';
 import EditProfileScreen from './src/screens/EditProfileScreen';
+import ChangePasswordScreen from './src/screens/ChangePasswordScreen';
+import MoniteurDetailsScreen from './src/screens/MoniteurDetailsScreen';
 
 const Stack = createStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -48,6 +50,7 @@ function DrawerScreens() {
     >
       <Drawer.Screen name="Profile" component={ProfileScreen} />
       <Drawer.Screen name="EditProfile" component={EditProfileScreen} />
+      <Drawer.Screen name="MoniteurDetailsScreen" component={MoniteurDetailsScreen} />
       {/* Add new screens here */}
     </Drawer.Navigator>
   );
@@ -68,6 +71,7 @@ export default function App() {
         <Stack.Screen name="SetNewPasswordScreen" component={SetNewPasswordScreen} />
         {/* Drawer screens for new features */}
         <Stack.Screen name="Profile" component={DrawerScreens} options={{ headerShown: false }} />
+        <Stack.Screen name="ChangePasswordScreen" component={ChangePasswordScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
