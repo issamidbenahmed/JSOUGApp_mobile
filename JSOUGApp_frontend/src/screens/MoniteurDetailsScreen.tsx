@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, TextInput, Image, ScrollView, FlatList, Alert
+  View, Text, StyleSheet, TouchableOpacity, TextInput, Image, ScrollView, FlatList, Alert, Platform
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation, DrawerActions } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import { updateMoniteurDetails } from '../services/api';
+import { updateMoniteurDetails, uploadCarPhoto, uploadCertificate } from '../services/api';
+import * as FileSystem from 'expo-file-system';
 
 const LICENSE_TYPES = [
   { type: 'A', icon: 'motorbike', label: 'Moto' },
@@ -37,22 +38,36 @@ export default function MoniteurDetailsScreen() {
   const [cars, setCars] = useState<any[]>([]);
   // Certificats
   const [certImages, setCertImages] = useState<string[]>([]);
+  // Loading state
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchProfileAndDetails = async () => {
       const token = await AsyncStorage.getItem('userToken');
       try {
-        const res = await axios.get('http://localhost:5000/api/moniteur/profile', {
+        // Fetch profile (avatar, name)
+        const profileRes = await axios.get('http://localhost:5000/api/moniteur/profile', {
           headers: { Authorization: `Bearer ${token}` },
         });
-        setAvatarUrl(res.data.avatar ? 'http://localhost:5000' + res.data.avatar : null);
-        setFullName(res.data.fullName || 'Moniteur');
+        setAvatarUrl(profileRes.data.avatar ? 'http://localhost:5000' + profileRes.data.avatar : null);
+        setFullName(profileRes.data.fullName || 'Moniteur');
+
+        // Fetch all details
+        const detailsRes = await axios.get('http://localhost:5000/api/moniteur/details', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        // Set all state from details
+        setSelectedLicenses(detailsRes.data.licenses?.map(l => l.type) || []);
+        setPrice(detailsRes.data.price ? String(detailsRes.data.price) : '');
+        setDescription(detailsRes.data.description || '');
+        setLocations(detailsRes.data.locations?.map(l => l.place) || []);
+        setCars(detailsRes.data.cars || []);
+        setCertImages(detailsRes.data.certificates?.map(c => c.photo_url) || []);
       } catch (err) {
-        setAvatarUrl(null);
-        setFullName('Moniteur');
+        // Optionally handle error
       }
     };
-    fetchProfile();
+    fetchProfileAndDetails();
   }, []);
 
   // Sélection permis
@@ -138,32 +153,124 @@ export default function MoniteurDetailsScreen() {
     setCertImages(certImages.filter((_, i) => i !== index));
   };
 
-  // Sauvegarde groupée
+  // Helper to upload an image and get the URL from the backend (EXACT same process as profile picture, platform-specific)
+  const uploadImageToBackend = async (uri, endpoint, token) => {
+    const formData = new FormData();
+    if (Platform.OS === 'web') {
+      // On web, fetch the blob from the uri and append as Blob
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      formData.append('photo', blob, 'photo.jpg');
+    } else {
+      // On mobile, use the { uri, name, type } object
+      formData.append('photo', {
+        uri: uri,
+        name: 'photo.jpg',
+        type: 'image/jpeg',
+      } as any);
+    }
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData,
+    });
+    const data = await res.json();
+    return data.photo_url;
+  };
+
+  // Helper to get the full image URL
+  const getImageUrl = (url: string) => {
+    if (url && url.startsWith('/uploads/')) {
+      return 'http://localhost:5000' + url;
+    }
+    return url;
+  };
+
+  // handleSave: Ensures all car/certificate images are uploaded to backend and only /uploads/ URLs are saved
   const handleSave = async () => {
-    const data = {
-      licenses: selectedLicenses.map((type: string) => ({ type })),
-      price,
-      description,
-      locations: locations.map((place: string) => ({ place })),
-      cars: cars.map((car: any) => ({
-        model: car.model,
-        transmission: car.transmission,
-        fuel_type: car.fuel_type,
-        price: Number(car.price),
-        photos: car.photos.map((photo_url: string) => ({ photo_url })),
-      })),
-      certificates: certImages.map((photo_url: string) => ({ photo_url })),
-    };
+    if (isSaving) return;
+    setIsSaving(true);
     try {
-      const token = (await AsyncStorage.getItem('userToken')) || '';
-      const res = await updateMoniteurDetails(data, token);
-      if (res && res.message) {
-        Alert.alert('Succès', 'Les informations ont bien été enregistrées !');
-      } else {
-        Alert.alert('Erreur', res.error || 'Une erreur est survenue');
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) {
+        Alert.alert('Erreur', 'Token non trouvé');
+        setIsSaving(false);
+        return;
       }
-    } catch (err: any) {
+
+      // Upload certificate images and collect only backend URLs
+      const uploadedCertificates = [];
+      for (const certImage of certImages) {
+        if (certImage.startsWith('file://') || certImage.startsWith('content://') || certImage.startsWith('data:')) {
+          // Always upload to backend and use only the returned URL
+          const url = await uploadImageToBackend(certImage, 'http://localhost:5000/api/moniteur/certificate', token);
+          if (url && url.startsWith('/uploads/')) {
+            uploadedCertificates.push({ photo_url: url });
+          } else {
+            Alert.alert('Erreur', 'Échec de l\'upload du certificat.');
+          }
+        } else if (certImage.startsWith('/uploads/')) {
+          // Already a backend URL
+          uploadedCertificates.push({ photo_url: certImage });
+        }
+        // Ignore any other format
+      }
+
+      // For each car, upload all new photos and collect only backend URLs
+      const carsWithPhotoUrls = [];
+      for (const car of cars) {
+        const photoUrls = [];
+        for (const photoUri of car.photos) {
+          if (photoUri.startsWith('file://') || photoUri.startsWith('content://') || photoUri.startsWith('data:')) {
+            // Always upload to backend and use only the returned URL
+            const url = await uploadImageToBackend(photoUri, 'http://localhost:5000/api/moniteur/car-photo', token);
+            if (url && url.startsWith('/uploads/')) {
+              photoUrls.push(url);
+            } else {
+              Alert.alert('Erreur', 'Échec de l\'upload de la photo de voiture.');
+            }
+          } else if (photoUri.startsWith('/uploads/')) {
+            // Already a backend URL
+            photoUrls.push(photoUri);
+          }
+          // Ignore any other format
+        }
+        carsWithPhotoUrls.push({
+          model: car.model,
+          transmission: car.transmission,
+          fuel_type: car.fuel_type,
+          price: Number(car.price),
+          photos: photoUrls, // Only backend URLs
+        });
+      }
+
+      // Prepare the data for the update
+      const data = {
+        licenses: selectedLicenses.map((type) => ({ type })),
+        price,
+        description,
+        locations: locations.map((place) => ({ place })),
+        cars: carsWithPhotoUrls,
+        certificates: uploadedCertificates,
+      };
+
+      // Debug log: PATCH data
+      console.log('PATCH data:', data);
+
+      // Update all details in one request
+      const res = await updateMoniteurDetails(data, token);
+      if (!res || res.error) {
+        Alert.alert('Erreur', res?.error || 'Une erreur est survenue');
+        setIsSaving(false);
+        return;
+      }
+
+      Alert.alert('Succès', 'Les informations ont bien été enregistrées !');
+    } catch (err) {
+      console.error('Error in handleSave:', err);
       Alert.alert('Erreur', err.message || 'Une erreur est survenue');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -180,7 +287,7 @@ export default function MoniteurDetailsScreen() {
       </View>
       <View style={styles.profileInfoContainer}>
         <Image
-          source={avatarUrl ? { uri: avatarUrl } : { uri: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=200&q=80' }}
+          source={avatarUrl ? { uri: getImageUrl(avatarUrl) } : { uri: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=200&q=80' }}
           style={styles.avatar}
         />
         <Text style={styles.name}>{fullName}</Text>
@@ -305,7 +412,7 @@ export default function MoniteurDetailsScreen() {
                 </TouchableOpacity>
               ) : (
                 <View style={styles.imageBox}>
-                  <Image source={{ uri: item }} style={styles.image} />
+                  <Image source={{ uri: getImageUrl(item) }} style={styles.image} />
                   <TouchableOpacity style={styles.removeImageBtn} onPress={() => removeCarPhoto(idx, index)}>
                     <Icon name="close-circle" size={22} color="#F44336" />
                   </TouchableOpacity>
@@ -335,7 +442,7 @@ export default function MoniteurDetailsScreen() {
             </TouchableOpacity>
           ) : (
             <View style={styles.imageBox}>
-              <Image source={{ uri: item }} style={styles.image} />
+              <Image source={{ uri: getImageUrl(item) }} style={styles.image} />
               <TouchableOpacity style={styles.removeImageBtn} onPress={() => removeCertImage(index)}>
                 <Icon name="close-circle" size={22} color="#F44336" />
               </TouchableOpacity>
@@ -344,8 +451,14 @@ export default function MoniteurDetailsScreen() {
         }
         style={{ marginBottom: 32 }}
       />
-      <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-        <Text style={styles.saveBtnText}>Save</Text>
+      <TouchableOpacity 
+        style={[styles.saveBtn, isSaving && styles.saveBtnDisabled]} 
+        onPress={handleSave}
+        disabled={isSaving}
+      >
+        <Text style={styles.saveBtnText}>
+          {isSaving ? 'Sauvegarde...' : 'Save'}
+        </Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -494,6 +607,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 17,
+  },
+  saveBtnDisabled: {
+    backgroundColor: '#ccc',
   },
   carBox: {
     borderWidth: 1,

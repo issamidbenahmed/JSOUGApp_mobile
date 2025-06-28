@@ -17,6 +17,9 @@ import { Linking } from 'react-native';
 import EditProfileScreen from './src/screens/EditProfileScreen';
 import ChangePasswordScreen from './src/screens/ChangePasswordScreen';
 import MoniteurDetailsScreen from './src/screens/MoniteurDetailsScreen';
+import MentorsScreen from './src/screens/MentorsScreen';
+import MessagesScreen from './src/screens/MessagesScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
 
 const Stack = createStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -49,9 +52,11 @@ function DrawerScreens() {
       }}
     >
       <Drawer.Screen name="Profile" component={ProfileScreen} />
+      <Drawer.Screen name="Mentors" component={MentorsScreen} />
+      <Drawer.Screen name="Messages" component={MessagesScreen} />
+      <Drawer.Screen name="Settings" component={SettingsScreen} />
       <Drawer.Screen name="EditProfile" component={EditProfileScreen} />
       <Drawer.Screen name="MoniteurDetailsScreen" component={MoniteurDetailsScreen} />
-      {/* Add new screens here */}
     </Drawer.Navigator>
   );
 }

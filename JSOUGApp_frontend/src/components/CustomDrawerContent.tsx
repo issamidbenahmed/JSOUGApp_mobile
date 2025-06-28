@@ -12,22 +12,21 @@ export default function CustomDrawerContent({ navigation }: any) {
       </View>
       {/* Menu Items */}
       <TouchableOpacity style={styles.menuItemActive} onPress={() => navigation.navigate('Profile')}>
-        <Icon name="view-dashboard-outline" size={22} color="#FBB614" />
-        <Text style={styles.menuTextActive}>Home</Text>
+        <Icon name="account-outline" size={22} color="#FBB614" />
+        <Text style={styles.menuTextActive}>Profile</Text>
       </TouchableOpacity>
-      {/* Uncomment and add these screens when you create them */}
-      {/* <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Mentors')}>
-        <Icon name="account-outline" size={22} color="#B0B0B0" />
+      <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Mentors')}>
+        <Icon name="account-group-outline" size={22} color="#B0B0B0" />
         <Text style={styles.menuText}>Mentors</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Message')}>
+      <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Messages')}>
         <Icon name="message-outline" size={22} color="#B0B0B0" />
-        <Text style={styles.menuText}>Message</Text>
+        <Text style={styles.menuText}>Messages</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Setting')}>
+      <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Settings')}>
         <Icon name="tune" size={22} color="#B0B0B0" />
-        <Text style={styles.menuText}>Setting</Text>
-      </TouchableOpacity> */}
+        <Text style={styles.menuText}>Settings</Text>
+      </TouchableOpacity>
       {/* Upgrade Box */}
       <View style={styles.upgradeBox}>
         <Text style={styles.upgradeTitle}>
