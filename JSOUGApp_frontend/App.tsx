@@ -20,6 +20,7 @@ import MoniteurDetailsScreen from './src/screens/MoniteurDetailsScreen';
 import MentorsScreen from './src/screens/MentorsScreen';
 import MessagesScreen from './src/screens/MessagesScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import RoleChoiceScreen from './src/screens/RoleChoiceScreen';
 
 const Stack = createStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -71,6 +72,7 @@ export default function App() {
         <Stack.Screen name="OTPVerificationScreen" component={OTPVerificationScreen} />
         <Stack.Screen name="LoginScreen" component={LoginScreen} />
         <Stack.Screen name="RegisterScreen" component={RegisterScreen} />
+        <Stack.Screen name="RoleChoiceScreen" component={RoleChoiceScreen} />
         <Stack.Screen name="ForgetPasswordScreen" component={ForgetPasswordScreen} />
         <Stack.Screen name="ResetEmailSentScreen" component={ResetEmailSentScreen} />
         <Stack.Screen name="SetNewPasswordScreen" component={SetNewPasswordScreen} />

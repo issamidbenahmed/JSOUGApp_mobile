@@ -6,7 +6,7 @@ import { login } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const LoginScreen = ({ navigation }: any) => {
-  const [email, setEmail] = useState('saadell@email.com');
+  const [email, setEmail] = useState('example@gmail.com');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [passwordVisible, setPasswordVisible] = useState(false);

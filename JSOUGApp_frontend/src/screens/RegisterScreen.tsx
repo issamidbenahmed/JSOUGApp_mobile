@@ -68,22 +68,6 @@ const RegisterScreen = ({ navigation }: any) => {
           <Text style={styles.subtitle}>
             Seems you are new here,{"\n"}Let's set up your profile.
           </Text>
-          <View style={{ flexDirection: 'row', marginBottom: 12, gap: 16 }}>
-            <TouchableOpacity
-              style={{ flexDirection: 'row', alignItems: 'center' }}
-              onPress={() => setRole('eleve')}
-            >
-              <Icon name={role === 'eleve' ? 'radiobox-marked' : 'radiobox-blank'} size={22} color="#FFA000" />
-              <Text style={{ marginLeft: 6 }}>Élève</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={{ flexDirection: 'row', alignItems: 'center' }}
-              onPress={() => setRole('moniteur')}
-            >
-              <Icon name={role === 'moniteur' ? 'radiobox-marked' : 'radiobox-blank'} size={22} color="#FFA000" />
-              <Text style={{ marginLeft: 6 }}>Moniteur</Text>
-            </TouchableOpacity>
-          </View>
           <TextInput
             label="Full Name"
             mode="outlined"
@@ -240,7 +224,7 @@ const RegisterScreen = ({ navigation }: any) => {
               };
               const res = await register(data);
               if (res.id) {
-                navigation.navigate('LoginScreen');
+                navigation.navigate('RoleChoiceScreen', { userId: res.id });
               } else {
                 Alert.alert('Erreur', res.error || "Inscription impossible");
               }

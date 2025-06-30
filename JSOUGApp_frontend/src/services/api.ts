@@ -107,11 +107,33 @@ export async function updateMoniteurDetails(data: {
 export async function uploadCarPhoto(carId: number, file: any, token: string) {
   const formData = new FormData();
   formData.append('carId', carId.toString());
-  formData.append('photo', {
-    uri: file.uri,
-    name: file.fileName || 'car.jpg',
-    type: file.type || 'image/jpeg',
-  } as any);
+  
+  // Handle both base64 and file URI
+  if (file.uri.startsWith('data:')) {
+    // Base64 data - create a blob from base64
+    const base64Data = file.uri.split(',')[1];
+    const blob = await fetch(file.uri).then(r => r.blob());
+    formData.append('photo', {
+      uri: file.uri,
+      name: file.fileName || 'car.jpg',
+      type: file.type || 'image/jpeg',
+    } as any);
+  } else {
+    // File URI
+    formData.append('photo', {
+      uri: file.uri,
+      name: file.fileName || 'car.jpg',
+      type: file.type || 'image/jpeg',
+    } as any);
+  }
+  
+  console.log('Uploading car photo with FormData:', {
+    carId,
+    fileName: file.fileName,
+    type: file.type,
+    uriStartsWith: file.uri.substring(0, 20) + '...'
+  });
+  
   const res = await fetch('http://localhost:5000/api/moniteur/car-photo', {
     method: 'POST',
     headers: {
@@ -120,7 +142,10 @@ export async function uploadCarPhoto(carId: number, file: any, token: string) {
     },
     body: formData,
   });
-  return res.json();
+  
+  const result = await res.json();
+  console.log('Car photo upload response:', result);
+  return result;
 }
 
 // Supprimer une photo de voiture
@@ -135,11 +160,24 @@ export async function deleteCarPhoto(id: number, token: string) {
 // Upload d'un certificat
 export async function uploadCertificate(file: any, token: string) {
   const formData = new FormData();
-  formData.append('photo', {
-    uri: file.uri,
-    name: file.fileName || 'certificate.jpg',
-    type: file.type || 'image/jpeg',
-  } as any);
+  
+  // Handle both base64 and file URI
+  if (file.uri.startsWith('data:')) {
+    // Base64 data
+    formData.append('photo', {
+      uri: file.uri,
+      name: file.fileName || 'certificate.jpg',
+      type: file.type || 'image/jpeg',
+    } as any);
+  } else {
+    // File URI
+    formData.append('photo', {
+      uri: file.uri,
+      name: file.fileName || 'certificate.jpg',
+      type: file.type || 'image/jpeg',
+    } as any);
+  }
+  
   const res = await fetch('http://localhost:5000/api/moniteur/certificate', {
     method: 'POST',
     headers: {
@@ -156,6 +194,15 @@ export async function deleteCertificate(id: number, token: string) {
   const res = await fetch(`http://localhost:5000/api/moniteur/certificate/${id}`, {
     method: 'DELETE',
     headers: { 'Authorization': `Bearer ${token}` },
+  });
+  return res.json();
+}
+
+export async function updateRole(userId: string, role: 'eleve' | 'moniteur') {
+  const res = await fetch(`${API_URL}/update-role`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, role }),
   });
   return res.json();
 } 

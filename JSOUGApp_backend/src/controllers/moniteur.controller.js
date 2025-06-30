@@ -109,11 +109,8 @@ exports.getMoniteurDetails = async (req, res) => {
     const licenses = await DrivingLicense.findByMoniteur(moniteurId);
     // Locations
     const locations = await Location.findByMoniteur(moniteurId);
-    // Voitures et leurs photos
+    // Voitures (photos are already included as an array)
     const cars = await Car.findByMoniteur(moniteurId);
-    for (const car of cars) {
-      car.photos = await CarPhoto.findByCar(car.id);
-    }
     // Certificats
     const certificates = await Certificate.findByMoniteur(moniteurId);
     res.json({ licenses, locations, cars, certificates });
@@ -154,13 +151,8 @@ exports.updateMoniteurDetails = async (req, res) => {
     await Car.removeAllForMoniteur(moniteurId);
     if (Array.isArray(cars)) {
       for (const car of cars) {
-        const carId = await Car.add(moniteurId, car.model || '', car.transmission || '', car.fuel_type || '', car.price || 0);
-        // Photos de voiture
-        if (Array.isArray(car.photos)) {
-          for (const photo of car.photos) {
-            await CarPhoto.add(carId, photo.photo_url || photo);
-          }
-        }
+        // car.photos should be an array of URLs
+        await Car.add(moniteurId, car.model || '', car.transmission || '', car.fuel_type || '', car.price || 0, car.photos || []);
       }
     }
     // Certificats
@@ -177,17 +169,42 @@ exports.updateMoniteurDetails = async (req, res) => {
   }
 };
 
-exports.uploadCarPhoto = [multerCarPhoto.single('photo'), async (req, res) => {
-  const { carId } = req.body;
+// Multer setup for car photos
+const carPhotoStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, path.join(__dirname, '../../uploads/'));
+  },
+  filename: function (req, file, cb) {
+    const ext = path.extname(file.originalname);
+    cb(null, 'car_photo_' + Date.now() + ext);
+  },
+});
+const uploadCarPhoto = multer({ storage: carPhotoStorage });
+
+// Multer setup for certificates
+const certificateStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, path.join(__dirname, '../../uploads/'));
+  },
+  filename: function (req, file, cb) {
+    const ext = path.extname(file.originalname);
+    cb(null, 'certificate_' + Date.now() + ext);
+  },
+});
+const uploadCertificate = multer({ storage: certificateStorage });
+
+// Car photo upload endpoint
+exports.uploadCarPhoto = [uploadCarPhoto.single('photo'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-  if (!carId) return res.status(400).json({ error: 'Missing carId' });
   const photo_url = '/uploads/' + req.file.filename;
-  try {
-    await CarPhoto.add(carId, photo_url);
-    res.json({ message: 'Car photo uploaded', photo_url });
-  } catch (err) {
-    res.status(500).json({ error: 'Server error' });
-  }
+  res.json({ photo_url });
+}];
+
+// Certificate upload endpoint
+exports.uploadCertificate = [uploadCertificate.single('photo'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  const photo_url = '/uploads/' + req.file.filename;
+  res.json({ photo_url });
 }];
 
 exports.deleteCarPhoto = async (req, res) => {
@@ -199,18 +216,6 @@ exports.deleteCarPhoto = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
-
-exports.uploadCertificate = [multerCertificate.single('photo'), async (req, res) => {
-  const moniteurId = req.user.id;
-  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-  const photo_url = '/uploads/' + req.file.filename;
-  try {
-    await Certificate.add(moniteurId, photo_url);
-    res.json({ message: 'Certificate uploaded', photo_url });
-  } catch (err) {
-    res.status(500).json({ error: 'Server error' });
-  }
-}];
 
 exports.deleteCertificate = async (req, res) => {
   const { id } = req.params;

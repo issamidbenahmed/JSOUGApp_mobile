@@ -8,5 +8,6 @@ router.post('/send-otp', auth.sendOtp);
 router.post('/verify-otp', auth.verifyOtp);
 router.post('/reset-password', auth.resetPassword);
 router.post('/request-password-reset', auth.requestPasswordReset);
+router.post('/update-role', auth.updateUserRole);
 
 module.exports = router; 
