@@ -196,7 +196,7 @@ export async function deleteCertificate(id: number, token: string) {
     headers: { 'Authorization': `Bearer ${token}` },
   });
   return res.json();
-}
+} 
 
 export async function updateRole(userId: string, role: 'eleve' | 'moniteur') {
   const res = await fetch(`${API_URL}/update-role`, {

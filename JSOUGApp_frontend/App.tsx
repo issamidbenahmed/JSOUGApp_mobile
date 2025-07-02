@@ -21,6 +21,8 @@ import MentorsScreen from './src/screens/MentorsScreen';
 import MessagesScreen from './src/screens/MessagesScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import RoleChoiceScreen from './src/screens/RoleChoiceScreen';
+import PosteScreen from './src/screens/PosteScreen';
+import WaitForValidationScreen from './src/screens/WaitForValidationScreen';
 
 const Stack = createStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -58,6 +60,7 @@ function DrawerScreens() {
       <Drawer.Screen name="Settings" component={SettingsScreen} />
       <Drawer.Screen name="EditProfile" component={EditProfileScreen} />
       <Drawer.Screen name="MoniteurDetailsScreen" component={MoniteurDetailsScreen} />
+      <Drawer.Screen name="PosteScreen" component={PosteScreen} />
     </Drawer.Navigator>
   );
 }
@@ -79,6 +82,7 @@ export default function App() {
         {/* Drawer screens for new features */}
         <Stack.Screen name="Profile" component={DrawerScreens} options={{ headerShown: false }} />
         <Stack.Screen name="ChangePasswordScreen" component={ChangePasswordScreen} />
+        <Stack.Screen name="WaitForValidationScreen" component={WaitForValidationScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

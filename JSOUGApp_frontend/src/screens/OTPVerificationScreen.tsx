@@ -76,8 +76,8 @@ const OTPVerificationScreen = ({ route, navigation }: any) => {
 
   return (
     <View style={{ flex: 1, padding: 24, backgroundColor: 'white', justifyContent: 'center' }}>
-      <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginBottom: 16 }}>
-        <Icon name="arrow-left" size={24} />
+      <TouchableOpacity onPress={() => navigation.navigate('PhoneNumberScreen')} style={{ position: 'absolute', top: 32, left: 16, zIndex: 2 }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <Icon name="arrow-left" size={28} color="#222" />
       </TouchableOpacity>
 
       <Text variant="titleMedium" style={{ textAlign: 'center', marginBottom: 12 }}>

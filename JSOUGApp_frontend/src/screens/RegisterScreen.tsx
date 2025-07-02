@@ -60,7 +60,7 @@ const RegisterScreen = ({ navigation }: any) => {
     >
       <View style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 0 }} keyboardShouldPersistTaps="handled">
-          <TouchableOpacity onPress={() => navigation.goBack()} style={{ alignSelf: 'flex-start', marginBottom: 16 }}>
+          <TouchableOpacity onPress={() => navigation.navigate('PhoneNumberScreen')} style={{ alignSelf: 'flex-start', marginBottom: 16 }}>
             <Icon name="arrow-left" size={24} />
           </TouchableOpacity>
           <Text style={styles.title}>Register</Text>

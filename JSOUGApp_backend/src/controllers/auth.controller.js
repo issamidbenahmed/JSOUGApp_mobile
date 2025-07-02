@@ -87,7 +87,7 @@ exports.resetPassword = async (req, res) => {
   await db.query('UPDATE users SET password = ? WHERE email = ?', [hash, email]);
   //await db.query('DELETE FROM password_resets WHERE token = ?', [token]);
   res.json({ message: 'Password updated' });
-};
+}; 
 
 exports.updateUserRole = async (req, res) => {
   const { userId, role } = req.body;
@@ -99,4 +99,10 @@ exports.updateUserRole = async (req, res) => {
     console.error('Error updating user role:', err);
     res.status(500).json({ error: 'Failed to update user role' });
   }
+}; 
+
+exports.me = async (req, res) => {
+  const user = await User.findById(req.user.id);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  res.json(user);
 }; 

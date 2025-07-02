@@ -17,6 +17,7 @@ const LoginScreen = ({ navigation }: any) => {
     if (res.token && res.user) {
       setLoginFailed(false);
       await AsyncStorage.setItem('userToken', res.token);
+      await AsyncStorage.setItem('userRole', res.user.role);
       Alert.alert('Connexion réussie');
       if (res.user.role === 'moniteur') {
         navigation.replace('Profile');
