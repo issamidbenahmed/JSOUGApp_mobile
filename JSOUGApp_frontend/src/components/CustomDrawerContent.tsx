@@ -4,12 +4,15 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // If using TypeScript, you can type navigation as any or use DrawerContentComponentProps from @react-navigation/drawer
-export default function CustomDrawerContent({ navigation }: any) {
+export default function CustomDrawerContent({ navigation, state }: any) {
   const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
     AsyncStorage.getItem('userRole').then(setRole);
   }, []);
+
+  // Récupérer la route active
+  const activeRoute = state?.routeNames[state?.index] || '';
 
   const handleOffresPress = async () => {
     const token = await AsyncStorage.getItem('userToken');
@@ -36,21 +39,54 @@ export default function CustomDrawerContent({ navigation }: any) {
         <Image source={require('../../assets/jsoug-logo.png')} style={styles.logo} />
       </View>
       {/* Menu Items */}
-      <TouchableOpacity style={styles.menuItemActive} onPress={() => navigation.navigate('Profile')}>
-        <Icon name="account-outline" size={22} color="#FBB614" />
-        <Text style={styles.menuTextActive}>Profile</Text>
+      <TouchableOpacity
+        style={activeRoute === 'Profile' ? styles.menuItemActive : styles.menuItem}
+        onPress={() => navigation.navigate('Profile')}
+      >
+        <Icon name="account-outline" size={22} color={activeRoute === 'Profile' ? '#FBB614' : '#B0B0B0'} />
+        <Text style={activeRoute === 'Profile' ? styles.menuTextActive : styles.menuText}>Profile</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.menuItem} onPress={handleOffresPress}>
-        <Icon name="account-group-outline" size={22} color="#B0B0B0" />
-        <Text style={styles.menuText}>Offres/Postes</Text>
+      <TouchableOpacity
+        style={activeRoute === 'PosteScreen' ? styles.menuItemActive : styles.menuItem}
+        onPress={handleOffresPress}
+      >
+        <Icon name="account-group-outline" size={22} color={activeRoute === 'PosteScreen' ? '#FBB614' : '#B0B0B0'} />
+        <Text style={activeRoute === 'PosteScreen' ? styles.menuTextActive : styles.menuText}>Offres/Postes</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Messages')}>
-        <Icon name="message-outline" size={22} color="#B0B0B0" />
-        <Text style={styles.menuText}>Messages</Text>
+      <TouchableOpacity
+        style={activeRoute === 'Messages' ? styles.menuItemActive : styles.menuItem}
+        onPress={() => navigation.navigate('Messages')}
+      >
+        <Icon name="message-outline" size={22} color={activeRoute === 'Messages' ? '#FBB614' : '#B0B0B0'} />
+        <Text style={activeRoute === 'Messages' ? styles.menuTextActive : styles.menuText}>Messages</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Settings')}>
-        <Icon name="tune" size={22} color="#B0B0B0" />
-        <Text style={styles.menuText}>Settings</Text>
+      <TouchableOpacity
+        style={activeRoute === 'Notifications' ? styles.menuItemActive : styles.menuItem}
+        onPress={() => navigation.navigate('Notifications')}
+      >
+        <Icon name="bell-outline" size={22} color={activeRoute === 'Notifications' ? '#FBB614' : '#B0B0B0'} />
+        <Text style={activeRoute === 'Notifications' ? styles.menuTextActive : styles.menuText}>Notifications</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={activeRoute === 'Historique' ? styles.menuItemActive : styles.menuItem}
+        onPress={() => navigation.navigate('Historique')}
+      >
+        <Icon name="history" size={22} color={activeRoute === 'Historique' ? '#FBB614' : '#B0B0B0'} />
+        <Text style={activeRoute === 'Historique' ? styles.menuTextActive : styles.menuText}>Historique</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={activeRoute === 'Securite' ? styles.menuItemActive : styles.menuItem}
+        onPress={() => navigation.navigate('Securite')}
+      >
+        <Icon name="shield-outline" size={22} color={activeRoute === 'Securite' ? '#FBB614' : '#B0B0B0'} />
+        <Text style={activeRoute === 'Securite' ? styles.menuTextActive : styles.menuText}>Sécurité</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={activeRoute === 'Settings' ? styles.menuItemActive : styles.menuItem}
+        onPress={() => navigation.navigate('Settings')}
+      >
+        <Icon name="tune" size={22} color={activeRoute === 'Settings' ? '#FBB614' : '#B0B0B0'} />
+        <Text style={activeRoute === 'Settings' ? styles.menuTextActive : styles.menuText}>Settings</Text>
       </TouchableOpacity>
       <View style={{ flex: 1 }} />
       {/* Section grise Upgrade to Pro */}

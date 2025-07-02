@@ -89,6 +89,15 @@ export default function PosteScreen({ navigation }: any) {
   const moniteurName = profile?.fullName || '';
   const avatar = profile?.avatar ? { uri: 'http://localhost:5000' + profile.avatar } : null;
 
+  // Aplatir toutes les photos de toutes les voitures
+  const allCarPhotos = cars.flatMap(car =>
+    (car.photos || []).map(photo =>
+      typeof photo === 'string'
+        ? (photo.startsWith('http') ? photo : 'http://localhost:5000' + photo)
+        : (photo.photo_url ? (photo.photo_url.startsWith('http') ? photo.photo_url : 'http://localhost:5000' + photo.photo_url) : null)
+    )
+  ).filter(Boolean);
+
   return (
     <ScrollView style={{ flex: 1, backgroundColor: '#fff' }} contentContainerStyle={{ paddingBottom: 40 }}>
       {/* Header */}
@@ -105,42 +114,31 @@ export default function PosteScreen({ navigation }: any) {
       {/* Aperçu de la carte du poste */}
       <View style={styles.card}>
         <RNScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-          {cars.length > 0 ? cars.map((car, idx) => {
-            const carImage = car?.photos?.[0]?.photo_url || car?.photos?.[0] || null;
-            const transmission = car?.transmission || 'N/A';
-            const fuel = car?.fuel_type || 'N/A';
-            return (
-              <View key={idx} style={{ marginRight: 12 }}>
-                {carImage ? (
-                  <Image source={{ uri: carImage.startsWith('http') ? carImage : 'http://localhost:5000' + carImage }} style={styles.carImage} />
-                ) : (
-                  <View style={[styles.carImage, { backgroundColor: '#eee', justifyContent: 'center', alignItems: 'center' }]}> 
-                    <Icon name="car" size={48} color="#bbb" />
-                  </View>
-                )}
-                <View style={styles.badgesRow}>
-                  <View style={styles.badge}><Text style={styles.badgeText}>{transmission}</Text></View>
-                  <View style={styles.badge}><Icon name={fuel === 'essence' ? 'gas-station' : 'fuel'} size={18} color="#222" /></View>
-                </View>
+          {allCarPhotos.length > 0 ? allCarPhotos.map((photo: any, idx: number) => (
+            <View key={idx} style={styles.imageContainer}>
+              <Image source={{ uri: photo }} style={styles.carImage} />
+              {/* Badges en overlay sur l'image */}
+              <View style={styles.overlayBadges}>
+                {/* Tu peux garder les badges de la première voiture, ou les adapter si besoin */}
+                <View style={[styles.badge, styles.badgeYellowBorder]}><Text style={styles.badgeText}>{cars[0]?.transmission || 'N/A'}</Text></View>
+                <View style={[styles.badge, styles.badgeYellowBorder]}><Icon name={cars[0]?.fuel_type === 'essence' ? 'gas-station' : 'fuel'} size={18} color="#222" /></View>
+                {licenses.map((l: any, idx2: number) => {
+                  const found = LICENSE_TYPES.find(t => t.type === l.type);
+                  return (
+                    <View key={idx2} style={[styles.badge, styles.badgeYellowBorder]}>
+                      <Icon name={found ? found.icon : 'card-account-details-outline'} size={18} color="#222" />
+                    </View>
+                  );
+                })}
               </View>
-            );
-          }) : (
-            <View style={[styles.carImage, { backgroundColor: '#eee', justifyContent: 'center', alignItems: 'center' }]}> 
+            </View>
+          )) : (
+            <View style={[styles.imageContainer, { backgroundColor: '#eee', justifyContent: 'center', alignItems: 'center' }]}> 
               <Icon name="car" size={48} color="#bbb" />
             </View>
           )}
         </RNScrollView>
-        {/* Permis sous forme d'icônes */}
-        <View style={styles.badgesRow}>
-          {licenses.map((l: any, idx: number) => {
-            const found = LICENSE_TYPES.find(t => t.type === l.type);
-            return (
-              <View key={idx} style={styles.badge}>
-                <Icon name={found ? found.icon : 'card-account-details-outline'} size={18} color="#222" />
-              </View>
-            );
-          })}
-        </View>
+        {/* Le reste du contenu de la carte */}
         <Text style={styles.cardTitle}>{description || 'Contenu du poste...'}</Text>
         <View style={styles.cardFooter}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -215,12 +213,26 @@ const styles = StyleSheet.create({
     elevation: 2,
     marginHorizontal: 4,
   },
+  imageContainer: {
+    width: 400,
+    aspectRatio: 1.8,
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: '#fff',
+  },
   carImage: {
     width: '100%',
-    height: 120,
-    borderRadius: 12,
-    marginBottom: 12,
+    height: '100%',
+    borderRadius: 18,
     resizeMode: 'cover',
+  },
+  overlayBadges: {
+    position: 'absolute',
+    bottom: 12,
+    left: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   badgesRow: {
     flexDirection: 'row',
@@ -313,5 +325,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 17,
+  },
+  badgeYellowBorder: {
+    borderWidth: 2,
+    borderColor: '#FFD600', // Jaune vif
   },
 }); 
