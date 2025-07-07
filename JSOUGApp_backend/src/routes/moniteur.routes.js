@@ -10,5 +10,8 @@ router.get('/details', authenticate, moniteurController.getMoniteurDetails);
 router.patch('/details', authenticate, moniteurController.updateMoniteurDetails);
 router.post('/car-photo', authenticate, moniteurController.uploadCarPhoto);
 router.post('/certificate', authenticate, moniteurController.uploadCertificate);
+router.post('/postes', authenticate, moniteurController.createPoste);
+router.get('/postes', authenticate, moniteurController.getMyPostes);
+router.get('/all-postes', moniteurController.getAllPostes);
 
 module.exports = router; 

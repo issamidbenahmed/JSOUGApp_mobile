@@ -1,14 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View, Text, StyleSheet, TouchableOpacity, TextInput, Image, ScrollView, FlatList, Alert, Platform
-} from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, FlatList } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import * as ImagePicker from 'expo-image-picker';
-import { useNavigation, DrawerActions } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
-import { updateMoniteurDetails, uploadCarPhoto, uploadCertificate } from '../services/api';
-import * as FileSystem from 'expo-file-system';
 
 const LICENSE_TYPES = [
   { type: 'A', icon: 'motorbike', label: 'Moto' },
@@ -21,638 +13,233 @@ const LICENSE_TYPES = [
   { type: 'H', icon: 'car-electric', label: 'Quad' },
 ];
 
-export default function MoniteurDetailsScreen() {
-  const navigation = useNavigation();
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [fullName, setFullName] = useState<string>('');
-  // Permis
-  const [selectedLicenses, setSelectedLicenses] = useState<string[]>([]);
-  // Prix
-  const [price, setPrice] = useState('');
-  // Description
-  const [description, setDescription] = useState('');
-  // Locations
-  const [locations, setLocations] = useState<string[]>([]);
-  const [newLocation, setNewLocation] = useState('');
-  // Voitures
-  const [cars, setCars] = useState<any[]>([]);
-  // Certificats
-  const [certImages, setCertImages] = useState<string[]>([]);
-  // Loading state
-  const [isSaving, setIsSaving] = useState(false);
-
-  useEffect(() => {
-    const fetchProfileAndDetails = async () => {
-      const token = await AsyncStorage.getItem('userToken');
-      try {
-        // Fetch profile (avatar, name)
-        const profileRes = await axios.get('http://localhost:5000/api/moniteur/profile', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setAvatarUrl(profileRes.data.avatar ? 'http://localhost:5000' + profileRes.data.avatar : null);
-        setFullName(profileRes.data.fullName || 'Moniteur');
-
-        // Fetch all details
-        const detailsRes = await axios.get('http://localhost:5000/api/moniteur/details', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        // Set all state from details
-        setSelectedLicenses(detailsRes.data.licenses?.map(l => l.type) || []);
-        setPrice(detailsRes.data.price ? String(detailsRes.data.price) : '');
-        setDescription(detailsRes.data.description || '');
-        setLocations(detailsRes.data.locations?.map(l => l.place) || []);
-        setCars(detailsRes.data.cars || []);
-        setCertImages(detailsRes.data.certificates?.map(c => c.photo_url) || []);
-      } catch (err) {
-        // Optionally handle error
-      }
-    };
-    fetchProfileAndDetails();
-  }, []);
-
-  // Sélection permis
-  const toggleLicense = (type: string) => {
-    setSelectedLicenses(licenses =>
-      licenses.includes(type)
-        ? licenses.filter(l => l !== type)
-        : [...licenses, type]
-    );
-  };
-
-  // Ajout location
-  const addLocation = () => {
-    if (newLocation.trim()) {
-      setLocations([...locations, newLocation.trim()]);
-      setNewLocation('');
-    }
-  };
-
-  // Suppression location
-  const removeLocation = (index: number) => {
-    setLocations(locations.filter((_, i) => i !== index));
-  };
-
-  // Ajouter une voiture
-  const addCar = () => {
-    setCars([...cars, {
-      model: '',
-      transmission: 'manuelle',
-      fuel_type: 'essence',
-      price: '',
-      photos: [],
-    }]);
-  };
-
-  // Modifier une propriété d'une voiture
-  const updateCar = (index: number, key: string, value: any) => {
-    setCars(cars => cars.map((car, i) => i === index ? { ...car, [key]: value } : car));
-  };
-
-  // Ajouter une photo à une voiture
-  const addCarPhoto = async (carIndex: number) => {
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 1,
-    });
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      setCars(cars => cars.map((car, i) =>
-        i === carIndex ? { ...car, photos: [...car.photos, result.assets[0].uri] } : car
-      ));
-    }
-  };
-
-  // Supprimer une photo d'une voiture
-  const removeCarPhoto = (carIndex: number, photoIndex: number) => {
-    setCars(cars => cars.map((car, i) =>
-      i === carIndex ? { ...car, photos: car.photos.filter((_: string, j: number) => j !== photoIndex) } : car
-    ));
-  };
-
-  // Supprimer une voiture
-  const removeCar = (index: number) => {
-    setCars(cars => cars.filter((_, i) => i !== index));
-  };
-
-  // Ajout image certificat
-  const addCertImage = async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 1,
-    });
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      setCertImages([...certImages, result.assets[0].uri]);
-    }
-  };
-
-  // Suppression image certificat
-  const removeCertImage = (index: number) => {
-    setCertImages(certImages.filter((_, i) => i !== index));
-  };
-
-  // Helper to upload an image and get the URL from the backend (EXACT same process as profile picture, platform-specific)
-  const uploadImageToBackend = async (uri, endpoint, token) => {
-    const formData = new FormData();
-    if (Platform.OS === 'web') {
-      // On web, fetch the blob from the uri and append as Blob
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      formData.append('photo', blob, 'photo.jpg');
-    } else {
-      // On mobile, use the { uri, name, type } object
-      formData.append('photo', {
-        uri: uri,
-        name: 'photo.jpg',
-        type: 'image/jpeg',
-      } as any);
-    }
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` },
-      body: formData,
-    });
-    const data = await res.json();
-    return data.photo_url;
-  };
-
-  // Helper to get the full image URL
-  const getImageUrl = (url: string) => {
-    if (url && url.startsWith('/uploads/')) {
-      return 'http://localhost:5000' + url;
-    }
-    return url;
-  };
-
-  // handleSave: Ensures all car/certificate images are uploaded to backend and only /uploads/ URLs are saved
-  const handleSave = async () => {
-    if (isSaving) return;
-    setIsSaving(true);
-    try {
-      const token = await AsyncStorage.getItem('userToken');
-      if (!token) {
-        Alert.alert('Erreur', 'Token non trouvé');
-        setIsSaving(false);
-        return;
-      }
-
-      // Upload certificate images and collect only backend URLs
-      const uploadedCertificates = [];
-      for (const certImage of certImages) {
-        if (certImage.startsWith('file://') || certImage.startsWith('content://') || certImage.startsWith('data:')) {
-          // Always upload to backend and use only the returned URL
-          const url = await uploadImageToBackend(certImage, 'http://localhost:5000/api/moniteur/certificate', token);
-          if (url && url.startsWith('/uploads/')) {
-            uploadedCertificates.push({ photo_url: url });
-          } else {
-            Alert.alert('Erreur', 'Échec de l\'upload du certificat.');
-          }
-        } else if (certImage.startsWith('/uploads/')) {
-          // Already a backend URL
-          uploadedCertificates.push({ photo_url: certImage });
-        }
-        // Ignore any other format
-      }
-
-      // For each car, upload all new photos and collect only backend URLs
-      const carsWithPhotoUrls = [];
-      for (const car of cars) {
-        const photoUrls = [];
-        for (const photoUri of car.photos) {
-          if (photoUri.startsWith('file://') || photoUri.startsWith('content://') || photoUri.startsWith('data:')) {
-            // Always upload to backend and use only the returned URL
-            const url = await uploadImageToBackend(photoUri, 'http://localhost:5000/api/moniteur/car-photo', token);
-            if (url && url.startsWith('/uploads/')) {
-              photoUrls.push(url);
-            } else {
-              Alert.alert('Erreur', 'Échec de l\'upload de la photo de voiture.');
-            }
-          } else if (photoUri.startsWith('/uploads/')) {
-            // Already a backend URL
-            photoUrls.push(photoUri);
-          }
-          // Ignore any other format
-        }
-        carsWithPhotoUrls.push({
-          model: car.model,
-          transmission: car.transmission,
-          fuel_type: car.fuel_type,
-          price: Number(car.price),
-          photos: photoUrls, // Only backend URLs
-        });
-      }
-
-      // Prepare the data for the update
-      const data = {
-        licenses: selectedLicenses.map((type) => ({ type })),
-        price,
-        description,
-        locations: locations.map((place) => ({ place })),
-        cars: carsWithPhotoUrls,
-        certificates: uploadedCertificates,
-      };
-
-      // Debug log: PATCH data
-      console.log('PATCH data:', data);
-
-      // Update all details in one request
-      const res = await updateMoniteurDetails(data, token);
-      if (!res || res.error) {
-        Alert.alert('Erreur', res?.error || 'Une erreur est survenue');
-        setIsSaving(false);
-        return;
-      }
-
-      Alert.alert('Succès', 'Les informations ont bien été enregistrées !');
-    } catch (err) {
-      console.error('Error in handleSave:', err);
-      Alert.alert('Erreur', err.message || 'Une erreur est survenue');
-    } finally {
-      setIsSaving(false);
-    }
-  };
+export default function MoniteurDetailsScreen({ route, navigation }: any) {
+  const { poste } = route.params;
+  const moniteur = poste.moniteur;
+  const carPhotos = Array.isArray(poste.cars) ? poste.cars.flatMap((car: any) => car.photos.map((p: any) => p.photo_url || p)).filter(Boolean) : [];
+  const locations = poste.location ? [poste.location] : [];
+  const certificates = Array.isArray(poste.certificates) ? poste.certificates.map((c: any) => c.photo_url) : [];
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => navigation.dispatch(DrawerActions.openDrawer())}>
+    <ScrollView style={{ flex: 1, backgroundColor: '#fff' }} contentContainerStyle={{ paddingBottom: 40 }}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.openDrawer && navigation.openDrawer()} style={styles.iconButton}>
           <Icon name="menu" size={28} color="#222" />
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => Alert.alert('Notifications')}>
-          <Icon name="bell-outline" size={28} color="#222" />
-          <View style={styles.notificationDot} />
+        <TouchableOpacity style={styles.iconButton}>
+          <Icon name="bell-outline" size={26} color="#222" />
         </TouchableOpacity>
       </View>
-      <View style={styles.profileInfoContainer}>
+      {/* Avatar, nom, note */}
+      <View style={{ alignItems: 'center', marginTop: 8 }}>
         <Image
-          source={avatarUrl ? { uri: getImageUrl(avatarUrl) } : { uri: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=200&q=80' }}
+          source={moniteur.avatar ? { uri: 'http://localhost:5000' + moniteur.avatar } : require('../assets/jsoug-logo.png')}
           style={styles.avatar}
         />
-        <Text style={styles.name}>{fullName}</Text>
+        <Text style={styles.name}>{moniteur.fullName}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+          <Icon name="star" size={16} color="#FFB800" />
+          <Text style={{ marginLeft: 4, color: '#222', fontWeight: 'bold' }}>4,5</Text>
+        </View>
       </View>
-      <Text style={styles.sectionTitle}>Permis</Text>
-      <View style={styles.licenseRow}>
-        {LICENSE_TYPES.map(lic => (
-          <TouchableOpacity
-            key={lic.type}
-            style={[styles.licenseIcon, selectedLicenses.includes(lic.type) && styles.licenseIconSelected]}
-            onPress={() => toggleLicense(lic.type)}
-          >
-            <Icon
-              name={lic.icon}
-              size={32}
-              color={selectedLicenses.includes(lic.type) ? '#4BB543' : '#999'}
-            />
-          </TouchableOpacity>
+      {/* Prix, badges permis, boutons */}
+      <View style={styles.rowCenter}>
+        <Text style={styles.price}>{poste.price} DHS/h</Text>
+        <View style={{ flexDirection: 'row', marginLeft: 12 }}>
+          {poste.licenses && poste.licenses.map((type: string, idx: number) => {
+            const found = LICENSE_TYPES.find(t => t.type === type);
+            return (
+              <View key={idx} style={[styles.badge, styles.badgeYellowBorder]}>
+                <Icon name={found ? found.icon : 'card-account-details-outline'} size={18} color="#222" />
+              </View>
+            );
+          })}
+        </View>
+      </View>
+      <View style={styles.buttonsRow}>
+        <TouchableOpacity style={[styles.actionBtn, styles.messageBtn]}><Text style={styles.messageBtnText}>Envoyer un message</Text></TouchableOpacity>
+        <TouchableOpacity style={[styles.actionBtn, styles.reserveBtn]}><Text style={styles.reserveBtnText}>Réserver</Text></TouchableOpacity>
+      </View>
+      {/* Biographie */}
+      <Text style={styles.sectionTitle}>Biographie</Text>
+      <Text style={styles.bioText}>{moniteur.description || 'Aucune biographie.'}</Text>
+      {/* Photos de voiture */}
+      <Text style={styles.sectionTitle}>Photos de voiture</Text>
+      <FlatList
+        data={carPhotos}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        keyExtractor={(_, idx) => idx.toString()}
+        renderItem={({ item }) => (
+          <Image source={{ uri: item.startsWith('http') ? item : 'http://localhost:5000' + item }} style={styles.carPhoto} />
+        )}
+        style={{ marginBottom: 8 }}
+      />
+      {/* Location */}
+      <Text style={styles.sectionTitle}>Location</Text>
+      <View style={styles.locationBox}>
+        {locations.map((loc, idx) => (
+          <View key={idx} style={styles.locationRow}>
+            <Icon name="map-marker-outline" size={18} color="#7ED957" />
+            <Text style={styles.locationText}>{loc}</Text>
+          </View>
         ))}
       </View>
-      <Text style={styles.sectionTitle}>Prix (DHS)</Text>
-      <TextInput
-        style={styles.input}
-        value={price}
-        onChangeText={setPrice}
-        keyboardType="numeric"
-        placeholder="5000"
-      />
-      <Text style={styles.sectionTitle}>Description</Text>
-      <TextInput
-        style={[styles.input, styles.textArea]}
-        value={description}
-        onChangeText={setDescription}
-        placeholder="Description"
-        multiline
-      />
-      <Text style={styles.sectionTitle}>Location</Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <TextInput
-          style={[styles.input, { flex: 1 }]}
-          value={newLocation}
-          onChangeText={setNewLocation}
-          placeholder="Add location"
-        />
-        <TouchableOpacity style={styles.addBtn} onPress={addLocation}>
-          <Icon name="plus" size={22} color="#FBB614" />
-        </TouchableOpacity>
-      </View>
-      {locations.map((loc, idx) => (
-        <View key={idx} style={styles.locationItem}>
-          <Text>{loc}</Text>
-          <TouchableOpacity onPress={() => removeLocation(idx)}>
-            <Icon name="close" size={18} color="#F44336" />
-          </TouchableOpacity>
-        </View>
-      ))}
-      <Text style={styles.sectionTitle}>Voitures</Text>
-      {cars.map((car, idx) => (
-        <View key={idx} style={styles.carBox}>
-          <TextInput
-            style={styles.input}
-            placeholder="Modèle"
-            value={car.model}
-            onChangeText={text => updateCar(idx, 'model', text)}
-          />
-          <View style={{ flexDirection: 'row', marginBottom: 8 }}>
-            <TouchableOpacity
-              style={[
-                styles.carOptionBtn,
-                car.transmission === 'manuelle' && styles.carOptionBtnSelected,
-              ]}
-              onPress={() => updateCar(idx, 'transmission', 'manuelle')}
-            >
-              <Text style={{ color: car.transmission === 'manuelle' ? '#fff' : '#222' }}>Manuelle</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.carOptionBtn,
-                car.transmission === 'automatique' && styles.carOptionBtnSelected,
-              ]}
-              onPress={() => updateCar(idx, 'transmission', 'automatique')}
-            >
-              <Text style={{ color: car.transmission === 'automatique' ? '#fff' : '#222' }}>Automatique</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={{ flexDirection: 'row', marginBottom: 8 }}>
-            <TouchableOpacity
-              style={[
-                styles.carOptionBtn,
-                car.fuel_type === 'essence' && styles.carOptionBtnSelected,
-              ]}
-              onPress={() => updateCar(idx, 'fuel_type', 'essence')}
-            >
-              <Text style={{ color: car.fuel_type === 'essence' ? '#fff' : '#222' }}>Essence</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.carOptionBtn,
-                car.fuel_type === 'diesel' && styles.carOptionBtnSelected,
-              ]}
-              onPress={() => updateCar(idx, 'fuel_type', 'diesel')}
-            >
-              <Text style={{ color: car.fuel_type === 'diesel' ? '#fff' : '#222' }}>Diesel</Text>
-            </TouchableOpacity>
-          </View>
-          <TextInput
-            style={styles.input}
-            placeholder="Prix"
-            value={car.price}
-            onChangeText={text => updateCar(idx, 'price', text)}
-            keyboardType="numeric"
-          />
-          <FlatList
-            data={[...car.photos, 'add']}
-            horizontal
-            keyExtractor={(_, i) => i.toString()}
-            renderItem={({ item, index }) =>
-              item === 'add' ? (
-                <TouchableOpacity style={styles.addImageBox} onPress={() => addCarPhoto(idx)}>
-                  <Icon name="camera" size={32} color="#FBB614" />
-                  <Text style={{ color: '#FBB614', fontSize: 12 }}>Add car images</Text>
-                </TouchableOpacity>
-              ) : (
-                <View style={styles.imageBox}>
-                  <Image source={{ uri: getImageUrl(item) }} style={styles.image} />
-                  <TouchableOpacity style={styles.removeImageBtn} onPress={() => removeCarPhoto(idx, index)}>
-                    <Icon name="close-circle" size={22} color="#F44336" />
-                  </TouchableOpacity>
-                </View>
-              )
-            }
-            style={{ marginBottom: 8 }}
-          />
-          <TouchableOpacity style={styles.removeCarBtn} onPress={() => removeCar(idx)}>
-            <Text style={styles.removeCarBtnText}>Supprimer cette voiture</Text>
-          </TouchableOpacity>
-        </View>
-      ))}
-      <TouchableOpacity style={styles.addCarBtn} onPress={addCar}>
-        <Text style={{ color: '#FBB614', fontWeight: 'bold' }}>+ Ajouter une voiture</Text>
-      </TouchableOpacity>
+      {/* Certificats */}
       <Text style={styles.sectionTitle}>Certificates</Text>
       <FlatList
-        data={[...certImages, 'add']}
+        data={certificates}
         horizontal
+        showsHorizontalScrollIndicator={false}
         keyExtractor={(_, idx) => idx.toString()}
-        renderItem={({ item, index }) =>
-          item === 'add' ? (
-            <TouchableOpacity style={styles.addImageBox} onPress={addCertImage}>
-              <Icon name="camera" size={32} color="#FBB614" />
-              <Text style={{ color: '#FBB614', fontSize: 12 }}>Add Certificates</Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.imageBox}>
-              <Image source={{ uri: getImageUrl(item) }} style={styles.image} />
-              <TouchableOpacity style={styles.removeImageBtn} onPress={() => removeCertImage(index)}>
-                <Icon name="close-circle" size={22} color="#F44336" />
-              </TouchableOpacity>
-            </View>
-          )
-        }
-        style={{ marginBottom: 32 }}
+        renderItem={({ item }) => (
+          <Image source={{ uri: item.startsWith('http') ? item : 'http://localhost:5000' + item }} style={styles.certificateImg} />
+        )}
+        style={{ marginBottom: 8 }}
       />
-      <TouchableOpacity 
-        style={[styles.saveBtn, isSaving && styles.saveBtnDisabled]} 
-        onPress={handleSave}
-        disabled={isSaving}
-      >
-        <Text style={styles.saveBtnText}>
-          {isSaving ? 'Sauvegarde...' : 'Save'}
-        </Text>
-      </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    padding: 20,
-  },
-  topBar: {
+  header: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
+    width: '100%',
+    paddingHorizontal: 8,
+    paddingTop: 32,
+    paddingBottom: 8,
+    backgroundColor: '#fff',
   },
-  notificationDot: {
-    position: 'absolute',
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#FBB614',
-    top: 3,
-    right: 0,
-  },
-  profileInfoContainer: {
-    alignItems: 'center',
-    marginBottom: 24,
+  iconButton: {
+    padding: 8,
   },
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 20,
-    backgroundColor: '#eee',
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    marginTop: 8,
     marginBottom: 8,
+    backgroundColor: '#eee',
   },
   name: {
     fontWeight: 'bold',
-    fontSize: 20,
+    fontSize: 22,
     color: '#222',
+    marginTop: 8,
+  },
+  rowCenter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
     marginBottom: 4,
+  },
+  price: {
+    color: '#7ED957',
+    fontWeight: 'bold',
+    fontSize: 22,
+    marginRight: 8,
+  },
+  badge: {
+    backgroundColor: '#F6F6F6',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginRight: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  badgeYellowBorder: {
+    borderWidth: 2,
+    borderColor: '#FFD600',
+  },
+  actionBtn: {
+    flex: 1,
+    minWidth: 0,
+    marginHorizontal: 4,
+    paddingVertical: 14,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  actionBtnText: {
+    color: '#FFB800',
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+  reserveBtn: {
+    backgroundColor: '#FFB800',
+    borderWidth: 0,
+  },
+  reserveBtnText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   sectionTitle: {
     fontWeight: 'bold',
-    fontSize: 16,
-    marginTop: 18,
-    marginBottom: 8,
+    fontSize: 18,
     color: '#222',
-  },
-  licenseRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-    marginBottom: 12,
-    flexWrap: 'wrap',
-  },
-  licenseIcon: {
-    borderWidth: 1,
-    borderColor: '#EAEAEA',
-    borderRadius: 12,
-    padding: 10,
-    marginRight: 8,
+    marginTop: 24,
     marginBottom: 8,
-    backgroundColor: '#fff',
-  },
-  licenseIconSelected: {
-    borderColor: '#4BB543',
-    backgroundColor: '#E8F5E9',
-  },
-  input: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#EAEAEA',
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: '#222',
-    marginBottom: 8,
-  },
-  textArea: {
-    minHeight: 60,
-    textAlignVertical: 'top',
-  },
-  addBtn: {
     marginLeft: 8,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#FBB614',
-    padding: 6,
   },
-  locationItem: {
+  bioText: {
+    color: '#444',
+    fontSize: 15,
+    marginHorizontal: 12,
+    marginBottom: 8,
+  },
+  carPhoto: {
+    width: 180,
+    height: 100,
+    borderRadius: 14,
+    marginRight: 12,
+    backgroundColor: '#eee',
+  },
+  locationBox: {
+    backgroundColor: '#F6F6F6',
+    borderRadius: 14,
+    padding: 12,
+    marginHorizontal: 12,
+    marginBottom: 8,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  locationText: {
+    color: '#222',
+    fontSize: 15,
+    marginLeft: 8,
+  },
+  certificateImg: {
+    width: 160,
+    height: 110,
+    borderRadius: 10,
+    marginRight: 12,
+    backgroundColor: '#eee',
+  },
+  buttonsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F9F9F9',
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 6,
-    borderWidth: 1,
-    borderColor: '#EAEAEA',
+    marginTop: 18,
+    marginBottom: 8,
+    gap: 0,
+    paddingHorizontal: 12,
   },
-  addImageBox: {
-    width: 90,
-    height: 90,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#FBB614',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-    backgroundColor: '#FFF9F0',
-  },
-  imageBox: {
-    width: 90,
-    height: 90,
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginRight: 10,
-    position: 'relative',
-    borderWidth: 1,
-    borderColor: '#EAEAEA',
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  removeImageBtn: {
-    position: 'absolute',
-    top: 2,
-    right: 2,
+  messageBtn: {
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 2,
+    borderWidth: 2,
+    borderColor: '#FFB800',
   },
-  saveBtn: {
-    backgroundColor: '#FBB614',
-    borderRadius: 16,
-    paddingVertical: 18,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  saveBtnText: {
-    color: '#fff',
+  messageBtnText: {
+    color: '#FFB800',
     fontWeight: 'bold',
-    fontSize: 17,
-  },
-  saveBtnDisabled: {
-    backgroundColor: '#ccc',
-  },
-  carBox: {
-    borderWidth: 1,
-    borderColor: '#EAEAEA',
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 16,
-    backgroundColor: '#FAFAFA',
-  },
-  carOptionBtn: {
-    borderWidth: 1,
-    borderColor: '#EAEAEA',
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-    marginRight: 8,
-    backgroundColor: '#fff',
-  },
-  carOptionBtnSelected: {
-    backgroundColor: '#FBB614',
-    borderColor: '#FBB614',
-  },
-  removeCarBtn: {
-    backgroundColor: '#F44336',
-    borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    alignSelf: 'center',
-    marginTop: 8,
-  },
-  removeCarBtnText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 15,
-  },
-  addCarBtn: {
-    borderWidth: 1,
-    borderColor: '#FBB614',
-    borderRadius: 10,
-    padding: 10,
-    alignItems: 'center',
-    marginBottom: 16,
-    backgroundColor: '#FFF9F0',
+    fontSize: 16,
   },
 }); 

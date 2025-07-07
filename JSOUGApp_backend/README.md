@@ -21,6 +21,8 @@ npm run dev
 - `POST /api/auth/send-otp` — Envoi OTP par email
 - `POST /api/auth/verify-otp` — Vérification OTP
 - `POST /api/auth/reset-password` — Réinitialisation du mot de passe
+- `POST /api/moniteur/postes` — Créer une offre/poste (moniteur)
+- `GET /api/moniteur/postes` — Lister les offres/postes du moniteur
 
 ## Exemple de .env
 
@@ -54,5 +56,14 @@ CREATE TABLE otps (
   email VARCHAR(100),
   code VARCHAR(10),
   createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE postes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  moniteur_id INT NOT NULL,
+  price VARCHAR(20) NOT NULL,
+  description TEXT NOT NULL,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (moniteur_id) REFERENCES users(id) ON DELETE CASCADE
 );
 ``` 

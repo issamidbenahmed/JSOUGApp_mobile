@@ -22,7 +22,7 @@ const LoginScreen = ({ navigation }: any) => {
       if (res.user.role === 'moniteur') {
         navigation.replace('Profile');
       } else {
-        navigation.replace('EleveDashboard');
+        navigation.replace('Profile');
       }
     } else {
       setLoginFailed(true);

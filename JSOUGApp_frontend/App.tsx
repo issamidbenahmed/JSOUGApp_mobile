@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createDrawerNavigator } from '@react-navigation/drawer';
@@ -23,12 +23,15 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import RoleChoiceScreen from './src/screens/RoleChoiceScreen';
 import PosteScreen from './src/screens/PosteScreen';
 import WaitForValidationScreen from './src/screens/WaitForValidationScreen';
+import StudentDashboardScreen from './src/screens/StudentDashboardScreen';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import MoniteursScreen from './src/screens/MentorsScreen';
 
 const Stack = createStackNavigator();
 const Drawer = createDrawerNavigator();
 
 const linking = {
-  prefixes: ['jsoug://'],
+  prefixes: ['jsoug://', 'http://localhost:8081'],
   config: {
     screens: {
       Splash: 'splash',
@@ -39,13 +42,25 @@ const linking = {
       RegisterScreen: 'register',
       ForgetPasswordScreen: 'forget',
       ResetEmailSentScreen: 'reset-email',
-      SetNewPasswordScreen: 'set-password',
+      SetNewPasswordScreen: {
+        path: 'reset-password',
+        parse: {
+          token: (token: string) => token,
+        },
+      },
       Profile: 'profile',
     },
   },
 };
 
 function DrawerScreens() {
+  const [role, setRole] = React.useState<string | null>(null);
+  useEffect(() => {
+    AsyncStorage.getItem('userRole').then(setRole);
+  }, []);
+
+  if (role === null) return null; // ou un loader
+
   return (
     <Drawer.Navigator
       drawerContent={props => <CustomDrawerContent {...props} />}
@@ -54,6 +69,12 @@ function DrawerScreens() {
         drawerStyle: { width: '75%' },
       }}
     >
+      {role === 'eleve' ? (
+        <>
+          <Drawer.Screen name="StudentDashboard" component={StudentDashboardScreen} options={{ title: 'Accueil' }} />
+          <Drawer.Screen name="Moniteurs" component={MoniteursScreen} options={{ title: 'Moniteurs' }} />
+        </>
+      ) : null}
       <Drawer.Screen name="Profile" component={ProfileScreen} />
       <Drawer.Screen name="Mentors" component={MentorsScreen} />
       <Drawer.Screen name="Messages" component={MessagesScreen} />

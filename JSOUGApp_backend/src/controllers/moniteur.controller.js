@@ -8,6 +8,7 @@ const Location = require('../models/location.model');
 const Car = require('../models/car.model');
 const CarPhoto = require('../models/car_photo.model');
 const Certificate = require('../models/certificate.model');
+const Poste = require('../models/poste.model');
 
 // Multer setup for avatar uploads
 const storage = multer.diskStorage({
@@ -224,5 +225,41 @@ exports.deleteCertificate = async (req, res) => {
     res.json({ message: 'Certificate deleted' });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
+  }
+};
+
+exports.createPoste = async (req, res) => {
+  const moniteurId = req.user.id;
+  const { price, description } = req.body;
+  if (!price || !description) {
+    return res.status(400).json({ error: 'Champs requis manquants' });
+  }
+  try {
+    const poste = await Poste.create(moniteurId, price, description);
+    res.json({ success: true, poste });
+  } catch (err) {
+    console.error('Erreur createPoste:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+};
+
+exports.getMyPostes = async (req, res) => {
+  const moniteurId = req.user.id;
+  try {
+    const postes = await Poste.findByMoniteur(moniteurId);
+    res.json(postes);
+  } catch (err) {
+    console.error('Erreur getMyPostes:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+};
+
+exports.getAllPostes = async (req, res) => {
+  try {
+    const postes = await Poste.findAllWithMoniteurAndCar();
+    res.json(postes);
+  } catch (err) {
+    console.error('Erreur getAllPostes:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
   }
 }; 

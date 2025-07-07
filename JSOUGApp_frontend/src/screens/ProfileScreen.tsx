@@ -26,6 +26,7 @@ export default function ProfileScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [pushNotification, setPushNotification] = useState(true);
   const [promoNotification, setPromoNotification] = useState(true);
+  const [role, setRole] = useState<string | null>(null);
 
   const fetchProfile = async () => {
     setLoading(true);
@@ -47,6 +48,7 @@ export default function ProfileScreen({ navigation }: any) {
   useFocusEffect(
     React.useCallback(() => {
       fetchProfile();
+      AsyncStorage.getItem('userRole').then(setRole);
     }, [])
   );
 
@@ -103,32 +105,35 @@ export default function ProfileScreen({ navigation }: any) {
 
       {/* Sections */}
       <View style={styles.sectionContainer}>
-        <Text style={styles.sectionTitle}>GENERAL</Text>
-        <MenuItem
-          icon="credit-card-outline"
-          title="Payment"
-          description="Add your credit & debit cards"
-          onPress={() => Alert.alert('Payment')}
-        />
-        <MenuItem
-          icon="map-marker-outline"
-          title="Locations"
-          description="Add your home & work locations"
-          onPress={() => navigation.navigate('MoniteurDetailsScreen', { section: 'locations' })}
-        />
-        <MenuItem
-          icon="car"
-          title="Car Pictures"
-          description="Add or edit car pictures"
-          onPress={() => navigation.navigate('MoniteurDetailsScreen', { section: 'car' })}
-        />
-        <MenuItem
-          icon="certificate-outline"
-          title="Certificates"
-          description="Add certificates"
-          onPress={() => navigation.navigate('MoniteurDetailsScreen', { section: 'certificates' })}
-        />
-
+        {role === 'moniteur' && (
+          <>
+            <Text style={styles.sectionTitle}>GENERAL</Text>
+            <MenuItem
+              icon="credit-card-outline"
+              title="Payment"
+              description="Add your credit & debit cards"
+              onPress={() => Alert.alert('Payment')}
+            />
+            <MenuItem
+              icon="map-marker-outline"
+              title="Locations"
+              description="Add your home & work locations"
+              onPress={() => navigation.navigate('MoniteurDetailsScreen', { section: 'locations' })}
+            />
+            <MenuItem
+              icon="car"
+              title="Car Pictures"
+              description="Add or edit car pictures"
+              onPress={() => navigation.navigate('MoniteurDetailsScreen', { section: 'car' })}
+            />
+            <MenuItem
+              icon="certificate-outline"
+              title="Certificates"
+              description="Add certificates"
+              onPress={() => navigation.navigate('MoniteurDetailsScreen', { section: 'certificates' })}
+            />
+          </>
+        )}
         <Text style={[styles.sectionTitle, { marginTop: 30 }]}>NOTIFICATIONS</Text>
         <NotificationToggle
           icon="bell-outline"
