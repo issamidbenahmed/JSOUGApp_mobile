@@ -19,6 +19,7 @@ import ChangePasswordScreen from './src/screens/ChangePasswordScreen';
 import MoniteurDetailsScreen from './src/screens/MoniteurDetailsScreen';
 import MentorsScreen from './src/screens/MentorsScreen';
 import MessagesScreen from './src/screens/MessagesScreen';
+import ChatScreen from './src/screens/ChatScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import RoleChoiceScreen from './src/screens/RoleChoiceScreen';
 import PosteScreen from './src/screens/PosteScreen';
@@ -26,6 +27,9 @@ import WaitForValidationScreen from './src/screens/WaitForValidationScreen';
 import StudentDashboardScreen from './src/screens/StudentDashboardScreen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MoniteursScreen from './src/screens/MentorsScreen';
+import BookingScreen from './src/screens/BookingScreen';
+import MoniteurInfoScreen from './src/screens/MoniteurInfoScreen';
+import MesPostesScreen from './src/screens/MesPostesScreen';
 
 const Stack = createStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -82,6 +86,7 @@ function DrawerScreens() {
       <Drawer.Screen name="EditProfile" component={EditProfileScreen} />
       <Drawer.Screen name="MoniteurDetailsScreen" component={MoniteurDetailsScreen} />
       <Drawer.Screen name="PosteScreen" component={PosteScreen} />
+      <Drawer.Screen name="MoniteurInfoScreen" component={MoniteurInfoScreen} options={{ drawerItemStyle: { display: 'none' } }} />
     </Drawer.Navigator>
   );
 }
@@ -104,6 +109,11 @@ export default function App() {
         <Stack.Screen name="Profile" component={DrawerScreens} options={{ headerShown: false }} />
         <Stack.Screen name="ChangePasswordScreen" component={ChangePasswordScreen} />
         <Stack.Screen name="WaitForValidationScreen" component={WaitForValidationScreen} />
+        <Stack.Screen name="BookingScreen" component={BookingScreen} />
+        <Stack.Screen name="MessagesScreen" component={MessagesScreen} />
+        <Stack.Screen name="ChatScreen" component={ChatScreen} />
+        <Stack.Screen name="MoniteurInfoScreen" component={MoniteurInfoScreen} />
+        <Stack.Screen name="MesPostes" component={MesPostesScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

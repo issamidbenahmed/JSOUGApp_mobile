@@ -9,6 +9,9 @@ const Car = require('../models/car.model');
 const CarPhoto = require('../models/car_photo.model');
 const Certificate = require('../models/certificate.model');
 const Poste = require('../models/poste.model');
+const Booking = require('../models/booking.model');
+const Conversation = require('../models/conversation.model');
+const Message = require('../models/message.model');
 
 // Multer setup for avatar uploads
 const storage = multer.diskStorage({
@@ -260,6 +263,122 @@ exports.getAllPostes = async (req, res) => {
     res.json(postes);
   } catch (err) {
     console.error('Erreur getAllPostes:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+};
+
+// Vérifier la disponibilité d'un créneau
+exports.checkBookingSlot = async (req, res) => {
+  const { poste_id, date, slot, hour } = req.query;
+  if (!poste_id || !date || !slot || !hour) {
+    return res.status(400).json({ error: 'Champs requis manquants' });
+  }
+  try {
+    const taken = await Booking.isSlotTaken(poste_id, date, slot, hour);
+    res.json({ taken });
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+};
+
+// Créer une réservation
+exports.createBooking = async (req, res) => {
+  const eleve_id = req.user.id;
+  const { moniteur_id, poste_id, date, slot, hour } = req.body;
+  if (!moniteur_id || !poste_id || !date || !slot || !hour) {
+    return res.status(400).json({ error: 'Champs requis manquants' });
+  }
+  try {
+    const taken = await Booking.isSlotTaken(poste_id, date, slot, hour);
+    if (taken) {
+      return res.status(409).json({ error: 'Ce créneau est déjà réservé' });
+    }
+    const booking = await Booking.create(eleve_id, moniteur_id, poste_id, date, slot, hour);
+    res.json({ success: true, booking });
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+};
+
+// Démarrer une conversation (ou la retrouver)
+exports.startConversation = async (req, res) => {
+  const user1_id = req.user.id;
+  const { user2_id } = req.body;
+  if (!user2_id) return res.status(400).json({ error: 'user2_id requis' });
+  try {
+    const conv = await Conversation.findOrCreate(user1_id, user2_id);
+    res.json(conv);
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+};
+
+// Lister toutes les conversations de l'utilisateur
+exports.getConversations = async (req, res) => {
+  const user_id = req.user.id;
+  try {
+    const convs = await Conversation.findByUser(user_id);
+    res.json(convs);
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+};
+
+// Récupérer les messages d'une conversation
+exports.getMessages = async (req, res) => {
+  const { conversationId } = req.params;
+  try {
+    const messages = await Message.findByConversation(conversationId);
+    res.json(messages);
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+};
+
+// Envoyer un message
+exports.sendMessage = async (req, res) => {
+  const sender_id = req.user.id;
+  const { conversationId } = req.params;
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: 'Message vide' });
+  try {
+    const msg = await Message.create(conversationId, sender_id, text);
+    await Conversation.updateLastMessage(conversationId, text, new Date());
+    res.json(msg);
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+};
+
+// Statut en ligne d'un utilisateur
+exports.getUserStatus = async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const db = require('../config/db');
+    const [rows] = await db.query('SELECT last_seen FROM users WHERE id = ?', [userId]);
+    if (!rows.length) return res.status(404).json({ online: false });
+    const lastSeen = rows[0].last_seen;
+    if (!lastSeen) return res.json({ online: false });
+    const last = new Date(lastSeen);
+    const now = new Date();
+    const diff = (now - last) / 1000; // secondes
+    res.json({ online: diff < 120 });
+  } catch (err) {
+    res.status(500).json({ online: false });
+  }
+};
+
+// Supprimer un poste
+exports.deletePoste = async (req, res) => {
+  const moniteurId = req.user.id;
+  const posteId = req.params.id;
+  try {
+    // Vérifie que le poste appartient bien au moniteur
+    const [rows] = await db.query('SELECT * FROM postes WHERE id = ? AND moniteur_id = ?', [posteId, moniteurId]);
+    if (!rows.length) return res.status(404).json({ error: 'Poste non trouvé' });
+    await db.query('DELETE FROM postes WHERE id = ?', [posteId]);
+    res.json({ success: true, message: 'Poste supprimé' });
+  } catch (err) {
     res.status(500).json({ error: 'Erreur serveur' });
   }
 }; 

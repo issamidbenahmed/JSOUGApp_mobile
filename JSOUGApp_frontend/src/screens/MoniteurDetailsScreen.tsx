@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, FlatList } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const LICENSE_TYPES = [
   { type: 'A', icon: 'motorbike', label: 'Moto' },
@@ -19,6 +20,8 @@ export default function MoniteurDetailsScreen({ route, navigation }: any) {
   const carPhotos = Array.isArray(poste.cars) ? poste.cars.flatMap((car: any) => car.photos.map((p: any) => p.photo_url || p)).filter(Boolean) : [];
   const locations = poste.location ? [poste.location] : [];
   const certificates = Array.isArray(poste.certificates) ? poste.certificates.map((c: any) => c.photo_url) : [];
+
+  console.log('POSTE:', poste);
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: '#fff' }} contentContainerStyle={{ paddingBottom: 40 }}>
@@ -58,8 +61,34 @@ export default function MoniteurDetailsScreen({ route, navigation }: any) {
         </View>
       </View>
       <View style={styles.buttonsRow}>
-        <TouchableOpacity style={[styles.actionBtn, styles.messageBtn]}><Text style={styles.messageBtnText}>Envoyer un message</Text></TouchableOpacity>
-        <TouchableOpacity style={[styles.actionBtn, styles.reserveBtn]}><Text style={styles.reserveBtnText}>Réserver</Text></TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.actionBtn, styles.messageBtn]}
+          onPress={async () => {
+            const token = await AsyncStorage.getItem('userToken');
+            try {
+              const res = await fetch('http://localhost:5000/api/moniteur/messages/start', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ user2_id: moniteur.id }),
+              });
+              const data = await res.json();
+              if (res.status === 200 && data.id) {
+                navigation.navigate('ChatScreen', { conversationId: data.id });
+              }
+            } catch (err) {}
+          }}
+        >
+          <Text style={styles.messageBtnText}>Envoyer un message</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.actionBtn, styles.reserveBtn]}
+          onPress={() => navigation.navigate('BookingScreen', { moniteurId: moniteur.id, posteId: poste.id || poste.poste_id })}
+        >
+          <Text style={styles.reserveBtnText}>Réserver</Text>
+        </TouchableOpacity>
       </View>
       {/* Biographie */}
       <Text style={styles.sectionTitle}>Biographie</Text>
@@ -71,10 +100,16 @@ export default function MoniteurDetailsScreen({ route, navigation }: any) {
         horizontal
         showsHorizontalScrollIndicator={false}
         keyExtractor={(_, idx) => idx.toString()}
-        renderItem={({ item }) => (
-          <Image source={{ uri: item.startsWith('http') ? item : 'http://localhost:5000' + item }} style={styles.carPhoto} />
+        renderItem={({ item, index }) => (
+          <Image
+            source={{ uri: item.startsWith('http') ? item : 'http://localhost:5000' + item }}
+            style={[
+              styles.carPhoto,
+              { marginLeft: index === 0 ? 12 : 0 }
+            ]}
+          />
         )}
-        style={{ marginBottom: 8 }}
+        style={{ marginBottom: 8, paddingHorizontal: 4 }}
       />
       {/* Location */}
       <Text style={styles.sectionTitle}>Location</Text>
@@ -93,10 +128,16 @@ export default function MoniteurDetailsScreen({ route, navigation }: any) {
         horizontal
         showsHorizontalScrollIndicator={false}
         keyExtractor={(_, idx) => idx.toString()}
-        renderItem={({ item }) => (
-          <Image source={{ uri: item.startsWith('http') ? item : 'http://localhost:5000' + item }} style={styles.certificateImg} />
+        renderItem={({ item, index }) => (
+          <Image
+            source={{ uri: item.startsWith('http') ? item : 'http://localhost:5000' + item }}
+            style={[
+              styles.certificateImg,
+              { marginLeft: index === 0 ? 12 : 0 }
+            ]}
+          />
         )}
-        style={{ marginBottom: 8 }}
+        style={{ marginBottom: 8, paddingHorizontal: 4 }}
       />
     </ScrollView>
   );

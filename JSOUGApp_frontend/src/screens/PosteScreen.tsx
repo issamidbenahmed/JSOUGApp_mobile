@@ -23,6 +23,8 @@ export default function PosteScreen({ navigation }: any) {
   const [posting, setPosting] = useState(false);
   const [cars, setCars] = useState<any[]>([]);
   const [licenses, setLicenses] = useState<any[]>([]);
+  const [role, setRole] = React.useState<string | null>(null);
+  const [cardWidth, setCardWidth] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchProfileAndDetails = async () => {
@@ -48,6 +50,10 @@ export default function PosteScreen({ navigation }: any) {
       setLoading(false);
     };
     fetchProfileAndDetails();
+  }, []);
+
+  useEffect(() => {
+    AsyncStorage.getItem('userRole').then(setRole);
   }, []);
 
   const handlePost = async () => {
@@ -112,14 +118,19 @@ export default function PosteScreen({ navigation }: any) {
       </View>
 
       {/* Aperçu de la carte du poste */}
-      <View style={styles.card}>
+      <View style={styles.card} onLayout={e => setCardWidth(e.nativeEvent.layout.width)}>
         <RNScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
           {allCarPhotos.length > 0 ? allCarPhotos.map((photo: any, idx: number) => (
-            <View key={idx} style={styles.imageContainer}>
+            <View
+              key={idx}
+              style={[
+                styles.imageContainer,
+                cardWidth ? { width: cardWidth * 0.92, alignSelf: 'center' } : { width: '92%', alignSelf: 'center' }
+              ]}
+            >
               <Image source={{ uri: photo }} style={styles.carImage} />
               {/* Badges en overlay sur l'image */}
               <View style={styles.overlayBadges}>
-                {/* Tu peux garder les badges de la première voiture, ou les adapter si besoin */}
                 <View style={[styles.badge, styles.badgeYellowBorder]}><Text style={styles.badgeText}>{cars[0]?.transmission || 'N/A'}</Text></View>
                 <View style={[styles.badge, styles.badgeYellowBorder]}><Icon name={cars[0]?.fuel_type === 'essence' ? 'gas-station' : 'fuel'} size={18} color="#222" /></View>
                 {licenses.map((l: any, idx2: number) => {
@@ -133,7 +144,11 @@ export default function PosteScreen({ navigation }: any) {
               </View>
             </View>
           )) : (
-            <View style={[styles.imageContainer, { backgroundColor: '#eee', justifyContent: 'center', alignItems: 'center' }]}> 
+            <View style={[
+              styles.imageContainer,
+              { backgroundColor: '#eee', justifyContent: 'center', alignItems: 'center' },
+              cardWidth ? { width: cardWidth * 0.91, alignSelf: 'center' } : { width: '91%', alignSelf: 'center' }
+            ]}>
               <Icon name="car" size={48} color="#bbb" />
             </View>
           )}
@@ -178,6 +193,21 @@ export default function PosteScreen({ navigation }: any) {
           <Text style={styles.postButtonText}>{posting ? 'Publication...' : 'Poster'}</Text>
         </TouchableOpacity>
       </View>
+      {role === 'moniteur' && (
+        <TouchableOpacity
+          style={{
+            backgroundColor: '#7ED957',
+            padding: 16,
+            borderRadius: 12,
+            marginHorizontal: 20,
+            marginTop: 24,
+            alignItems: 'center'
+          }}
+          onPress={() => navigation.navigate('MesPostes')}
+        >
+          <Text style={{ color: '#222', fontWeight: 'bold', fontSize: 16 }}>Gérer mes postes</Text>
+        </TouchableOpacity>
+      )}
     </ScrollView>
   );
 }
@@ -212,18 +242,18 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
     marginHorizontal: 4,
+    width: '100%',
   },
   imageContainer: {
-    width: 400,
     aspectRatio: 1.8,
     borderRadius: 18,
     overflow: 'hidden',
     backgroundColor: '#fff',
+    alignSelf: 'center',
   },
   carImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 18,
     resizeMode: 'cover',
   },
   overlayBadges: {

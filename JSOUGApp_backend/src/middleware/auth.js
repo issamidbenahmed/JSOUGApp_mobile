@@ -1,6 +1,7 @@
 const { verify } = require('../utils/jwt');
+const db = require('../config/db');
 
-function authenticate(req, res, next) {
+async function authenticate(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'No token provided' });
@@ -9,6 +10,12 @@ function authenticate(req, res, next) {
   try {
     const decoded = verify(token);
     req.user = decoded;
+    // Mettre à jour last_seen
+    if (decoded && decoded.id) {
+      try {
+        await db.query('UPDATE users SET last_seen = NOW() WHERE id = ?', [decoded.id]);
+      } catch (e) {}
+    }
     next();
   } catch (err) {
     return res.status(401).json({ error: 'Invalid token' });

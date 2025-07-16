@@ -1,18 +1,52 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, FlatList, ScrollView } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 
 interface PosteCardProps {
   poste: any;
   onBook?: () => void;
 }
 
+type RootStackParamList = {
+  BookingScreen: { moniteurId: number; posteId: number };
+  // autres écrans si besoin
+};
+
+const BASE_URL = 'http://localhost:5000';
+
 const PosteCard: React.FC<PosteCardProps> = ({ poste, onBook }) => {
-  const carPhoto = poste.car?.photo
-    ? (poste.car.photo.startsWith('http') ? poste.car.photo : 'http://localhost:5000' + poste.car.photo)
-    : null;
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const [cardWidth, setCardWidth] = useState<number | null>(null);
+  // Images de voiture (slider) : toutes les images de toutes les voitures du poste
+  let carImages: string[] = [];
+  if (poste.cars && poste.cars.length > 0) {
+    poste.cars.forEach((car: any, idx: number) => {
+      if (Array.isArray(car.photos)) {
+        car.photos.forEach((p: any, pidx: number) => {
+          let url = typeof p === 'string' ? p : (p && p.photo_url ? p.photo_url : null);
+          console.log('Car', idx, 'Photo', pidx, 'URL:', url);
+          if (url) {
+            carImages.push(url.startsWith('http') ? url : BASE_URL + url);
+          }
+        });
+      }
+    });
+  } else if (poste.car?.photo) {
+    carImages = [poste.car.photo.startsWith('http') ? poste.car.photo : BASE_URL + poste.car.photo];
+  }
+
+  // Slider state pour les points indicateurs
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const onViewableItemsChanged = React.useRef(({ viewableItems }: any) => {
+    if (viewableItems && viewableItems.length > 0) {
+      setCurrentIndex(viewableItems[0].index);
+    }
+  }).current;
+  const viewConfigRef = React.useRef({ viewAreaCoveragePercentThreshold: 50 });
   const avatar = poste.moniteur?.avatar
-    ? { uri: 'http://localhost:5000' + poste.moniteur.avatar }
+    ? { uri: BASE_URL + poste.moniteur.avatar }
     : null;
 
   // Ajoute ce mapping pour les icônes de permis
@@ -28,12 +62,66 @@ const PosteCard: React.FC<PosteCardProps> = ({ poste, onBook }) => {
   ];
 
   return (
-    <View style={styles.card}>
-      {/* Image voiture */}
-      {carPhoto ? (
-        <Image source={{ uri: carPhoto }} style={styles.carImage} />
+    <View style={styles.card} onLayout={e => setCardWidth(e.nativeEvent.layout.width)}>
+      {/* Slider d'images voiture */}
+      {carImages.length > 1 ? (
+        <>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            pagingEnabled
+            style={{ marginBottom: 12 }}
+            onScroll={e => {
+              if (!cardWidth) return;
+              const index = Math.round(e.nativeEvent.contentOffset.x / cardWidth);
+              setCurrentIndex(index);
+            }}
+            scrollEventThrottle={16}
+          >
+            {carImages.map((item, idx) => (
+              <View
+                key={idx}
+                style={[
+                  styles.imageContainer,
+                  cardWidth ? { width: cardWidth * 0.91, aspectRatio: 1.8, marginBottom: 12, alignSelf: 'center' } : { width: '91%', alignSelf: 'center' }
+                ]}
+              >
+                <Image
+                  source={{ uri: item }}
+                  style={{ width: '100%', height: '100%', resizeMode: 'cover' }}
+                />
+              </View>
+            ))}
+          </ScrollView>
+          <View style={styles.dotsContainer}>
+            {carImages.map((_, idx) => (
+              <View
+                key={idx}
+                style={[styles.dot, currentIndex === idx && styles.dotActive]}
+              />
+            ))}
+          </View>
+        </>
+      ) : carImages.length === 1 ? (
+        <View
+          style={[
+            styles.imageContainer,
+            cardWidth ? { width: cardWidth * 0.91, aspectRatio: 1.8, marginBottom: 12, alignSelf: 'center' } : { width: '91%', alignSelf: 'center' }
+          ]}
+        >
+          <Image
+            source={{ uri: carImages[0] }}
+            style={{ width: '100%', height: '100%', resizeMode: 'cover' }}
+          />
+        </View>
       ) : (
-        <View style={[styles.carImage, { backgroundColor: '#eee', justifyContent: 'center', alignItems: 'center' }]}> 
+        <View
+          style={[
+            styles.imageContainer,
+            { justifyContent: 'center', alignItems: 'center' },
+            cardWidth ? { width: cardWidth * 0.91, aspectRatio: 1.8, marginBottom: 12, alignSelf: 'center' } : { width: '91%', alignSelf: 'center' }
+          ]}
+        >
           <Icon name="car" size={48} color="#bbb" />
         </View>
       )}
@@ -80,7 +168,10 @@ const PosteCard: React.FC<PosteCardProps> = ({ poste, onBook }) => {
       {/* Prix et bouton */}
       <View style={styles.priceRow}>
         <Text style={styles.priceText}>{poste.price} DHS/h</Text>
-        <TouchableOpacity style={styles.bookButton} onPress={onBook}>
+        <TouchableOpacity
+          style={styles.bookButton}
+          onPress={() => navigation.navigate('BookingScreen', { moniteurId: poste.moniteur?.id, posteId: poste.id || poste.poste_id })}
+        >
           <Text style={styles.bookButtonText}>Book</Text>
         </TouchableOpacity>
       </View>
@@ -100,11 +191,17 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
     marginHorizontal: 4,
+    overflow: 'hidden', // Empêche les images de dépasser
+  },
+  imageContainer: {
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: '#eee',
   },
   carImage: {
     width: '100%',
     aspectRatio: 1.8,
-    borderRadius: 18,
+    // borderRadius: 18, // SUPPRIMÉ, le borderRadius est sur le conteneur
     resizeMode: 'cover',
     marginBottom: 12,
   },
@@ -184,6 +281,22 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  dotsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#ccc',
+    marginHorizontal: 3,
+  },
+  dotActive: {
+    backgroundColor: '#FFB800',
   },
 });
 

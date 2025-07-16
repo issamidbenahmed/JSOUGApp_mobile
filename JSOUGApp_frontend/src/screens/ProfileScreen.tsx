@@ -118,19 +118,19 @@ export default function ProfileScreen({ navigation }: any) {
               icon="map-marker-outline"
               title="Locations"
               description="Add your home & work locations"
-              onPress={() => navigation.navigate('MoniteurDetailsScreen', { section: 'locations' })}
+              onPress={() => navigation.navigate('MoniteurInfoScreen', { section: 'locations' })}
             />
             <MenuItem
               icon="car"
               title="Car Pictures"
               description="Add or edit car pictures"
-              onPress={() => navigation.navigate('MoniteurDetailsScreen', { section: 'car' })}
+              onPress={() => navigation.navigate('MoniteurInfoScreen', { section: 'car' })}
             />
             <MenuItem
               icon="certificate-outline"
               title="Certificates"
               description="Add certificates"
-              onPress={() => navigation.navigate('MoniteurDetailsScreen', { section: 'certificates' })}
+              onPress={() => navigation.navigate('MoniteurInfoScreen', { section: 'certificates' })}
             />
           </>
         )}

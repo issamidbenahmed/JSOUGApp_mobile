@@ -13,5 +13,13 @@ router.post('/certificate', authenticate, moniteurController.uploadCertificate);
 router.post('/postes', authenticate, moniteurController.createPoste);
 router.get('/postes', authenticate, moniteurController.getMyPostes);
 router.get('/all-postes', moniteurController.getAllPostes);
+router.get('/booking/check', authenticate, moniteurController.checkBookingSlot);
+router.post('/booking', authenticate, moniteurController.createBooking);
+router.post('/messages/start', authenticate, moniteurController.startConversation);
+router.get('/messages/conversations', authenticate, moniteurController.getConversations);
+router.get('/messages/:conversationId', authenticate, moniteurController.getMessages);
+router.post('/messages/:conversationId', authenticate, moniteurController.sendMessage);
+router.get('/user-status/:userId', authenticate, moniteurController.getUserStatus);
+router.delete('/postes/:id', authenticate, moniteurController.deletePoste);
 
 module.exports = router; 
