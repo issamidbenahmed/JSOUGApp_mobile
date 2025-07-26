@@ -56,6 +56,13 @@ export default function CustomDrawerContent({ navigation, state }: any) {
             <Text style={activeRoute === 'StudentDashboard' ? styles.menuTextActive : styles.menuText}>Accueil</Text>
           </TouchableOpacity>
           <TouchableOpacity
+            style={activeRoute === 'MesReservations' ? styles.menuItemActive : styles.menuItem}
+            onPress={() => navigation.navigate('MesReservations')}
+          >
+            <Icon name="calendar-check-outline" size={22} color={activeRoute === 'MesReservations' ? '#FBB614' : '#B0B0B0'} />
+            <Text style={activeRoute === 'MesReservations' ? styles.menuTextActive : styles.menuText}>Mes réservations</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
             style={activeRoute === 'Moniteurs' ? styles.menuItemActive : styles.menuItem}
             onPress={() => navigation.navigate('Moniteurs')}
           >
@@ -107,6 +114,13 @@ export default function CustomDrawerContent({ navigation, state }: any) {
           >
             <Icon name="account-outline" size={22} color={activeRoute === 'Profile' ? '#FBB614' : '#B0B0B0'} />
             <Text style={activeRoute === 'Profile' ? styles.menuTextActive : styles.menuText}>Profile</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={activeRoute === 'MoniteurDashboard' ? styles.menuItemActive : styles.menuItem}
+            onPress={() => navigation.navigate('MoniteurDashboard')}
+          >
+            <Icon name="view-dashboard-outline" size={22} color={activeRoute === 'MoniteurDashboard' ? '#FBB614' : '#B0B0B0'} />
+            <Text style={activeRoute === 'MoniteurDashboard' ? styles.menuTextActive : styles.menuText}>Tableau de bord</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={activeRoute === 'PosteScreen' ? styles.menuItemActive : styles.menuItem}

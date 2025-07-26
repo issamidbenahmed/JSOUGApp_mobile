@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Login from './pages/Login';
 import MoniteursList from './pages/MoniteursList';
+import AdminDashboard from './pages/AdminDashboard';
 import Sidebar from './components/Sidebar';
 import './App.css';
 
@@ -31,6 +32,7 @@ function App() {
             }}
           >
             {menu === 'moniteurs' && <MoniteursList />}
+            {menu === 'dashboard' && <AdminDashboard />}
             {/* Tu pourras ajouter d'autres menus ici */}
           </main>
         </>

@@ -52,11 +52,24 @@ const pool = mysql.createPool({
     date VARCHAR(20) NOT NULL,
     slot VARCHAR(20) NOT NULL,
     hour VARCHAR(20) NOT NULL,
+    status ENUM('pending', 'accepted', 'rejected', 'completed') DEFAULT 'pending',
+    commission DECIMAL(10,2) DEFAULT 10,
+    payment_status ENUM('unpaid', 'paid') DEFAULT 'unpaid',
+    payment_method ENUM('local', 'stripe') DEFAULT NULL,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (eleve_id) REFERENCES users(id),
     FOREIGN KEY (moniteur_id) REFERENCES users(id),
     FOREIGN KEY (poste_id) REFERENCES postes(id)
   )`;
+
+  // Ajout des colonnes si la table bookings existe déjà
+  const addStatusColumn = `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS status ENUM('pending', 'accepted', 'rejected', 'completed') DEFAULT 'pending'`;
+  const addCommissionColumn = `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS commission DECIMAL(10,2) DEFAULT 10`;
+  const addPaymentStatusColumn = `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_status ENUM('unpaid', 'paid') DEFAULT 'unpaid'`;
+  const addPaymentMethodColumn = `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_method ENUM('local', 'stripe') DEFAULT NULL`;
+
+  // Ajout du champ balance à la table users
+  const addBalanceColumn = `ALTER TABLE users ADD COLUMN IF NOT EXISTS balance DECIMAL(10,2) DEFAULT 0`;
 
   // Table conversations
   const createConversationsTable = `CREATE TABLE IF NOT EXISTS conversations (
@@ -83,15 +96,32 @@ const pool = mysql.createPool({
   // Ajout colonne last_seen à users si manquante
   const addLastSeenColumn = `ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP NULL DEFAULT NULL`;
 
+  // Table transactions
+  const createTransactionsTable = `CREATE TABLE IF NOT EXISTS transactions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    moniteur_id INT NOT NULL,
+    type ENUM('recharge', 'commission') NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    description VARCHAR(255),
+    FOREIGN KEY (moniteur_id) REFERENCES users(id)
+  )`;
+
   try {
     const conn = await pool.getConnection();
     await conn.query(createUsersTable);
     await conn.query(createOtpsTable);
     await conn.query(createPasswordResetsTable);
     await conn.query(createBookingsTable);
+    await conn.query(addStatusColumn);
+    await conn.query(addCommissionColumn);
+    await conn.query(addPaymentStatusColumn);
+    await conn.query(addPaymentMethodColumn);
+    await conn.query(addBalanceColumn);
     await conn.query(createConversationsTable);
     await conn.query(createMessagesTable);
     await conn.query(addLastSeenColumn);
+    await conn.query(createTransactionsTable);
     conn.release();
   } catch (err) {
     console.error('Erreur création tables:', err);

@@ -1,9 +1,11 @@
 import React from 'react';
 import { Drawer, List, ListItem, ListItemIcon, ListItemText, Box, Divider } from '@mui/material';
 import PeopleIcon from '@mui/icons-material/People';
+import DashboardIcon from '@mui/icons-material/Dashboard';
 import LogoutIcon from '@mui/icons-material/Logout';
 
 const menuItems = [
+  { text: 'Dashboard', icon: <DashboardIcon />, key: 'dashboard' },
   { text: 'Moniteurs', icon: <PeopleIcon />, key: 'moniteurs' },
   // Tu pourras ajouter d'autres menus ici
 ];

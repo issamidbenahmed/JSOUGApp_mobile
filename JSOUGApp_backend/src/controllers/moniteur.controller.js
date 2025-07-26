@@ -12,6 +12,8 @@ const Poste = require('../models/poste.model');
 const Booking = require('../models/booking.model');
 const Conversation = require('../models/conversation.model');
 const Message = require('../models/message.model');
+const Stripe = require('stripe');
+const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
 // Multer setup for avatar uploads
 const storage = multer.diskStorage({
@@ -281,7 +283,7 @@ exports.checkBookingSlot = async (req, res) => {
   }
 };
 
-// Créer une réservation
+// Créer une réservation (statut initial : pending)
 exports.createBooking = async (req, res) => {
   const eleve_id = req.user.id;
   const { moniteur_id, poste_id, date, slot, hour } = req.body;
@@ -293,6 +295,7 @@ exports.createBooking = async (req, res) => {
     if (taken) {
       return res.status(409).json({ error: 'Ce créneau est déjà réservé' });
     }
+    // La réservation est créée avec status: 'pending', commission: 10, payment_status: 'unpaid'
     const booking = await Booking.create(eleve_id, moniteur_id, poste_id, date, slot, hour);
     res.json({ success: true, booking });
   } catch (err) {
@@ -378,6 +381,284 @@ exports.deletePoste = async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Poste non trouvé' });
     await db.query('DELETE FROM postes WHERE id = ?', [posteId]);
     res.json({ success: true, message: 'Poste supprimé' });
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+};
+
+// Accepter ou refuser une réservation
+exports.respondToBooking = async (req, res) => {
+  const moniteur_id = req.user.id;
+  const { booking_id, action } = req.body; // action: 'accept' ou 'reject'
+  if (!booking_id || !['accept', 'reject'].includes(action)) {
+    return res.status(400).json({ error: 'Paramètres invalides' });
+  }
+  try {
+    const booking = await Booking.getById(booking_id);
+    if (!booking) return res.status(404).json({ error: 'Réservation introuvable' });
+    if (booking.moniteur_id != moniteur_id) return res.status(403).json({ error: 'Non autorisé' });
+    if (booking.status !== 'pending') return res.status(400).json({ error: 'Réservation déjà traitée' });
+    if (action === 'reject') {
+      await Booking.updateStatus(booking_id, 'rejected');
+      return res.json({ success: true, status: 'rejected' });
+    }
+    // action === 'accept'
+    // Vérifier le solde du moniteur
+    const user = await User.findById(moniteur_id);
+    if (user.balance < booking.commission) {
+      return res.status(400).json({ error: 'Solde insuffisant pour accepter la réservation.' });
+    }
+    await Booking.updateStatus(booking_id, 'accepted');
+    return res.json({ success: true, status: 'accepted' });
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+};
+
+// Confirmer le paiement d'une réservation (par l'élève)
+exports.confirmBookingPayment = async (req, res) => {
+  const eleve_id = req.user.id;
+  const { booking_id, payment_method } = req.body; // payment_method: 'local' ou 'stripe'
+  if (!booking_id || !['local', 'stripe'].includes(payment_method)) {
+    return res.status(400).json({ error: 'Paramètres invalides' });
+  }
+  try {
+    const booking = await Booking.getById(booking_id);
+    if (!booking) return res.status(404).json({ error: 'Réservation introuvable' });
+    if (booking.eleve_id != eleve_id) return res.status(403).json({ error: 'Non autorisé' });
+    if (booking.status !== 'accepted') return res.status(400).json({ error: 'Réservation non acceptée par le moniteur' });
+    // Vérifier le solde du moniteur
+    const moniteur = await User.findById(booking.moniteur_id);
+    if (moniteur.balance < booking.commission) {
+      return res.status(400).json({ error: 'Solde du moniteur insuffisant, veuillez attendre qu’il recharge.' });
+    }
+    // Déduire la commission
+    const newBalance = moniteur.balance - booking.commission;
+    await User.updateBalance(moniteur.id, newBalance);
+    // Passer la réservation à completed, paid, et enregistrer le mode de paiement
+    await Booking.completeBooking(booking_id, payment_method);
+    res.json({ success: true, status: 'completed' });
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+};
+
+// Créer une session Stripe Checkout pour recharger le solde du moniteur
+exports.createStripeRechargeSession = async (req, res) => {
+  const moniteur_id = req.user.id;
+  const { amount } = req.body; // en dirhams
+  if (!amount || isNaN(amount) || amount <= 0) {
+    return res.status(400).json({ error: 'Montant invalide' });
+  }
+  try {
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'mad',
+            product_data: {
+              name: 'Recharge solde moniteur',
+            },
+            unit_amount: Math.round(amount * 100), // Stripe attend les centimes
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'payment',
+      success_url: `${process.env.FRONTEND_URL}/recharge-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.FRONTEND_URL}/recharge-cancel`,
+      metadata: {
+        moniteur_id: String(moniteur_id),
+        amount: String(amount),
+      },
+    });
+    res.json({ url: session.url });
+  } catch (err) {
+    console.error('Erreur Stripe:', err);
+    res.status(500).json({ error: 'Erreur Stripe' });
+  }
+};
+
+// Créer une session Stripe Checkout pour payer une réservation (élève)
+exports.createStripeBookingSession = async (req, res) => {
+  const eleve_id = req.user.id;
+  const { booking_id } = req.body;
+  if (!booking_id) {
+    return res.status(400).json({ error: 'booking_id requis' });
+  }
+  try {
+    // Récupérer la réservation
+    const booking = await Booking.getById(booking_id);
+    if (!booking) return res.status(404).json({ error: 'Réservation introuvable' });
+    if (booking.eleve_id != eleve_id) return res.status(403).json({ error: 'Non autorisé' });
+    // Récupérer le poste pour le prix
+    const [posteRows] = await db.query('SELECT * FROM postes WHERE id = ?', [booking.poste_id]);
+    const poste = posteRows[0];
+    if (!poste || !poste.price) return res.status(400).json({ error: 'Prix du poste introuvable' });
+    const amount = parseFloat(poste.price);
+    if (!amount || isNaN(amount) || amount < 5) {
+      return res.status(400).json({ error: 'Montant trop petit pour Stripe (min 5 MAD)' });
+    }
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'mad',
+            product_data: {
+              name: `Réservation poste #${poste.id}`,
+            },
+            unit_amount: Math.round(amount * 100),
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'payment',
+      success_url: `${process.env.FRONTEND_URL}/recharge-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.FRONTEND_URL}/recharge-cancel`,
+      metadata: {
+        eleve_id: String(eleve_id),
+        booking_id: String(booking_id),
+        poste_id: String(poste.id),
+        amount: String(amount),
+      },
+    });
+    res.json({ url: session.url });
+  } catch (err) {
+    console.error('Erreur Stripe:', err);
+    res.status(500).json({ error: 'Erreur Stripe' });
+  }
+};
+
+// Webhook Stripe pour traiter les paiements (recharge moniteur + paiement réservation élève)
+exports.stripeWebhook = async (req, res) => {
+  // LOG DU RAW BODY POUR DEBUG
+  console.log('RAW BODY:', req.body);
+  const sig = req.headers['stripe-signature'];
+  let event;
+  try {
+    // Utilise req.body (car express.raw) et PAS req.rawBody
+    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    console.error('Erreur signature Stripe:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    console.log('SESSION STRIPE:', session);
+    
+    // Vérifier si c'est une recharge moniteur
+    const moniteur_id = session.metadata && session.metadata.moniteur_id;
+    const amount = session.metadata && parseFloat(session.metadata.amount);
+    
+    if (moniteur_id && amount) {
+      // Recharge moniteur
+      try {
+        const user = await User.findById(moniteur_id);
+        if (user) {
+          const newBalance = parseFloat(user.balance || 0) + amount;
+          await User.updateBalance(moniteur_id, newBalance);
+          
+          // Enregistrer la transaction de recharge
+          await db.query('INSERT INTO transactions (moniteur_id, type, amount, description) VALUES (?, ?, ?, ?)', 
+            [moniteur_id, 'recharge', amount, `Recharge solde via Stripe`]);
+          
+          console.log(`Solde crédité pour moniteur ${moniteur_id}: +${amount} MAD`);
+        }
+      } catch (err) {
+        console.error('Erreur crédit solde:', err);
+      }
+    }
+    
+    // Vérifier si c'est un paiement de réservation élève
+    const booking_id = session.metadata && session.metadata.booking_id;
+    const eleve_id = session.metadata && session.metadata.eleve_id;
+    
+    if (booking_id && eleve_id) {
+      // Paiement réservation élève
+      try {
+        const booking = await Booking.getById(booking_id);
+        const posteAmount = parseFloat(session.metadata.amount) || 0;
+        
+        // Ignorer les paiements de test (montants trop petits)
+        if (posteAmount < 5) {
+          console.log(`Paiement ignoré (montant trop petit): ${posteAmount} MAD pour réservation ${booking_id}`);
+          return res.json({ received: true });
+        }
+        
+        if (booking && booking.status === 'accepted') {
+          // Vérifier le solde du moniteur
+          const moniteur = await User.findById(booking.moniteur_id);
+          const moniteurBalance = parseFloat(moniteur.balance) || 0;
+          const commission = parseFloat(booking.commission) || 0;
+          
+          if (moniteurBalance >= commission) {
+            // Ajouter le montant payé au solde du moniteur (posteAmount déjà défini plus haut)
+            const newMoniteurBalance = moniteurBalance + posteAmount - commission;
+            console.log(`Moniteur ${moniteur.id}: solde avant=${moniteurBalance}, montant poste=${posteAmount}, commission=${commission}, nouveau solde=${newMoniteurBalance}`);
+            await User.updateBalance(moniteur.id, newMoniteurBalance);
+            
+            // Ajouter la commission au solde de l'administrateur
+            const admin = await User.findByRole('admin');
+            console.log('Admin trouvé:', admin);
+            if (admin) {
+              const adminBalance = parseFloat(admin.balance) || 0;
+              const newAdminBalance = adminBalance + commission;
+              console.log(`Admin ${admin.id}: solde avant=${adminBalance}, commission=${commission}, nouveau solde=${newAdminBalance}`);
+              await User.updateBalance(admin.id, newAdminBalance);
+            } else {
+              console.error('Aucun administrateur trouvé dans la base de données');
+            }
+            
+            // Enregistrer la transaction commission
+            await db.query('INSERT INTO transactions (moniteur_id, type, amount, description) VALUES (?, ?, ?, ?)', 
+              [booking.moniteur_id, 'commission', -booking.commission, `Commission pour réservation #${booking_id} (Stripe)`]);
+            
+            // Marquer la réservation comme payée et complétée (SANS redéduire la commission)
+            await db.query('UPDATE bookings SET status = ?, payment_status = ?, payment_method = ? WHERE id = ?', 
+              ['completed', 'paid', 'stripe', booking_id]);
+            
+            console.log(`Réservation ${booking_id} payée via Stripe: +${posteAmount} MAD au moniteur, -${booking.commission} MAD commission, +${booking.commission} MAD à l'admin`);
+          } else {
+            console.error(`Solde insuffisant pour moniteur ${moniteur.id}, réservation ${booking_id} non traitée`);
+          }
+        }
+      } catch (err) {
+        console.error('Erreur traitement paiement réservation:', err);
+      }
+    }
+  }
+  res.json({ received: true });
+};
+
+// Récupérer l'historique des transactions du moniteur
+exports.getTransactions = async (req, res) => {
+  const moniteur_id = req.user.id;
+  try {
+    const db = require('../config/db');
+    const [rows] = await db.query('SELECT * FROM transactions WHERE moniteur_id = ? ORDER BY date DESC', [moniteur_id]);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+};
+
+// Récupérer les réservations du moniteur ou de l'élève connecté
+exports.getBookings = async (req, res) => {
+  const userId = req.user.id;
+  const userRole = req.user.role;
+  try {
+    const db = require('../config/db');
+    let rows;
+    if (userRole === 'moniteur') {
+      [rows] = await db.query('SELECT * FROM bookings WHERE moniteur_id = ? ORDER BY date DESC', [userId]);
+    } else if (userRole === 'eleve') {
+      [rows] = await db.query('SELECT * FROM bookings WHERE eleve_id = ? ORDER BY date DESC', [userId]);
+    } else {
+      return res.status(403).json({ error: 'Rôle non autorisé' });
+    }
+    res.json(rows);
   } catch (err) {
     res.status(500).json({ error: 'Erreur serveur' });
   }

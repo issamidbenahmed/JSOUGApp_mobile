@@ -17,6 +17,16 @@ const User = {
     );
     return result.insertId;
   },
+  async updateBalance(id, newBalance) {
+    // S'assurer que newBalance est un nombre
+    const numericBalance = parseFloat(newBalance) || 0;
+    await db.query('UPDATE users SET balance = ? WHERE id = ?', [numericBalance, id]);
+    console.log(`Balance mise à jour pour user ${id}: ${numericBalance}`);
+  },
+  async findByRole(role) {
+    const [rows] = await db.query('SELECT * FROM users WHERE role = ? LIMIT 1', [role]);
+    return rows[0];
+  },
 };
 
 module.exports = User; 

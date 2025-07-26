@@ -1,4 +1,51 @@
 const db = require('../config/db');
+const User = require('../models/user.model');
+
+// Récupérer le solde de l'administrateur
+exports.getBalance = async (req, res) => {
+  try {
+    const admin = await User.findByRole('admin');
+    if (!admin) {
+      return res.status(404).json({ error: 'Administrateur non trouvé' });
+    }
+    res.json({ balance: admin.balance || 0 });
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+};
+
+// Récupérer toutes les réservations
+exports.getAllBookings = async (req, res) => {
+  try {
+    const [rows] = await db.query(`
+      SELECT b.*, 
+             u1.fullName as eleve_name,
+             u2.fullName as moniteur_name
+      FROM bookings b
+      LEFT JOIN users u1 ON b.eleve_id = u1.id
+      LEFT JOIN users u2 ON b.moniteur_id = u2.id
+      ORDER BY b.createdAt DESC
+    `);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+};
+
+// Récupérer toutes les transactions
+exports.getAllTransactions = async (req, res) => {
+  try {
+    const [rows] = await db.query(`
+      SELECT t.*, u.fullName as moniteur_name
+      FROM transactions t
+      LEFT JOIN users u ON t.moniteur_id = u.id
+      ORDER BY t.date DESC
+    `);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+};
 
 exports.getAllMoniteurs = async (req, res) => {
   try {

@@ -30,6 +30,10 @@ import MoniteursScreen from './src/screens/MentorsScreen';
 import BookingScreen from './src/screens/BookingScreen';
 import MoniteurInfoScreen from './src/screens/MoniteurInfoScreen';
 import MesPostesScreen from './src/screens/MesPostesScreen';
+import MoniteurDashboardScreen from './src/screens/MoniteurDashboardScreen';
+import MesReservationsScreen from './src/screens/MesReservationsScreen';
+import MoniteurHistoriqueScreen from './src/screens/MoniteurHistoriqueScreen';
+import EleveHistoriqueScreen from './src/screens/EleveHistoriqueScreen';
 
 const Stack = createStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -76,10 +80,19 @@ function DrawerScreens() {
       {role === 'eleve' ? (
         <>
           <Drawer.Screen name="StudentDashboard" component={StudentDashboardScreen} options={{ title: 'Accueil' }} />
+          <Drawer.Screen name="Profile" component={ProfileScreen} />
           <Drawer.Screen name="Moniteurs" component={MoniteursScreen} options={{ title: 'Moniteurs' }} />
+          <Drawer.Screen name="MesReservations" component={MesReservationsScreen} options={{ title: 'Mes réservations' }} />
+          <Drawer.Screen name="Historique" component={EleveHistoriqueScreen} options={{ title: 'Historique' }} />
         </>
       ) : null}
-      <Drawer.Screen name="Profile" component={ProfileScreen} />
+      {role === 'moniteur' ? (
+        <>
+          <Drawer.Screen name="Profile" component={ProfileScreen} />
+          <Drawer.Screen name="MoniteurDashboard" component={MoniteurDashboardScreen} options={{ title: 'Tableau de bord' }} />
+          <Drawer.Screen name="Historique" component={MoniteurHistoriqueScreen} options={{ title: 'Historique' }} />
+        </>
+      ) : null}
       <Drawer.Screen name="Mentors" component={MentorsScreen} />
       <Drawer.Screen name="Messages" component={MessagesScreen} />
       <Drawer.Screen name="Settings" component={SettingsScreen} />

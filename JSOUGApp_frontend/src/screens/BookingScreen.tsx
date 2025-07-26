@@ -8,13 +8,13 @@ import { Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const timeSlots = [
-  { label: 'Afternoon', value: 'afternoon' },
-  { label: 'Late Morning', value: 'late_morning' },
+  { label: 'Matinée', value: 'morning' },
+  { label: 'Après-midi', value: 'afternoon' },
 ];
 
 const hours = [
-  '07:00 AM', '09:00 AM', '11:00 AM',
-  '01:00 PM', '03:00 PM', '05:00 PM', '07:00 PM'
+  '07:00', '09:00', '11:00',
+  '13:00', '15:00', '17:00', '19:00'
 ];
 
 const BookingScreen = ({ route, navigation }: any) => {
@@ -22,8 +22,8 @@ const BookingScreen = ({ route, navigation }: any) => {
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState(todayStr);
-  const [selectedSlot, setSelectedSlot] = useState('afternoon');
-  const [selectedHour, setSelectedHour] = useState('07:00 AM');
+  const [selectedSlot, setSelectedSlot] = useState('morning');
+  const [selectedHour, setSelectedHour] = useState('07:00');
   const [loading, setLoading] = useState(false);
 
   const handleBook = async () => {
@@ -108,7 +108,7 @@ const BookingScreen = ({ route, navigation }: any) => {
         }}
         style={styles.calendar}
       />
-      <Text style={styles.pickTime}>Pick time</Text>
+      <Text style={styles.pickTime}>Choisissez l'heure</Text>
       <View style={styles.slotRow}>
         {timeSlots.map(slot => (
           <TouchableOpacity
@@ -143,7 +143,7 @@ const BookingScreen = ({ route, navigation }: any) => {
         <Text style={styles.checkboxLabel}>Include cleaning Instruments</Text>
       </View> */}
       <TouchableOpacity style={styles.bookBtn} onPress={handleBook} disabled={loading}>
-        <Text style={styles.bookBtnText}>{loading ? 'Réservation...' : 'Book'}</Text>
+        <Text style={styles.bookBtnText}>{loading ? 'Réservation...' : 'Réserver'}</Text>
       </TouchableOpacity>
     </ScrollView>
   );
