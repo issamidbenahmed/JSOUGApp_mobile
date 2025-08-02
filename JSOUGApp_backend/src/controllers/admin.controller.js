@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const User = require('../models/user.model');
+const { createNotificationForUser } = require('./notification.controller');
 
 // Récupérer le solde de l'administrateur
 exports.getBalance = async (req, res) => {
@@ -82,6 +83,13 @@ exports.validateMoniteur = async (req, res) => {
   const moniteurId = req.params.id;
   try {
     await db.query('UPDATE users SET isValidated = 1 WHERE id = ?', [moniteurId]);
+    // Notifier le moniteur
+    await createNotificationForUser({
+      user_id: moniteurId,
+      type: 'validation',
+      title: 'Compte validé',
+      body: 'Votre compte a été validé par l\'administrateur.'
+    });
     res.json({ success: true });
   } catch (err) {
     console.error('Erreur validateMoniteur:', err);

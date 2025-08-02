@@ -2,13 +2,24 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getNotifications } from '../services/api';
 
 // If using TypeScript, you can type navigation as any or use DrawerContentComponentProps from @react-navigation/drawer
 export default function CustomDrawerContent({ navigation, state }: any) {
   const [role, setRole] = useState<string | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     AsyncStorage.getItem('userRole').then(setRole);
+    const fetchUnread = async () => {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return;
+      const notifs = await getNotifications(token);
+      if (Array.isArray(notifs)) {
+        setUnreadCount(notifs.filter((n: any) => !n.is_read).length);
+      }
+    };
+    fetchUnread();
   }, []);
 
   // Récupérer la route active
@@ -82,6 +93,11 @@ export default function CustomDrawerContent({ navigation, state }: any) {
           >
             <Icon name="bell-outline" size={22} color={activeRoute === 'Notifications' ? '#FBB614' : '#B0B0B0'} />
             <Text style={activeRoute === 'Notifications' ? styles.menuTextActive : styles.menuText}>Notifications</Text>
+            {unreadCount > 0 && (
+              <View style={styles.badgeContainer}>
+                <Text style={styles.badgeText}>{unreadCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
           <TouchableOpacity
             style={activeRoute === 'Historique' ? styles.menuItemActive : styles.menuItem}
@@ -90,13 +106,15 @@ export default function CustomDrawerContent({ navigation, state }: any) {
             <Icon name="history" size={22} color={activeRoute === 'Historique' ? '#FBB614' : '#B0B0B0'} />
             <Text style={activeRoute === 'Historique' ? styles.menuTextActive : styles.menuText}>Historique</Text>
           </TouchableOpacity>
+
           <TouchableOpacity
-            style={activeRoute === 'Securite' ? styles.menuItemActive : styles.menuItem}
-            onPress={() => navigation.navigate('Securite')}
+            style={activeRoute === 'SetNewPasswordScreen' ? styles.menuItemActive : styles.menuItem}
+            onPress={() => navigation.navigate('SetNewPasswordScreen')}
           >
-            <Icon name="shield-outline" size={22} color={activeRoute === 'Securite' ? '#FBB614' : '#B0B0B0'} />
-            <Text style={activeRoute === 'Securite' ? styles.menuTextActive : styles.menuText}>Sécurité</Text>
+            <Icon name="shield-outline" size={22} color={activeRoute === 'SetNewPasswordScreen' ? '#FBB614' : '#B0B0B0'} />
+            <Text style={activeRoute === 'SetNewPasswordScreen' ? styles.menuTextActive : styles.menuText}>Sécurité</Text>
           </TouchableOpacity>
+
           <TouchableOpacity
             style={activeRoute === 'Settings' ? styles.menuItemActive : styles.menuItem}
             onPress={() => navigation.navigate('Settings')}
@@ -142,6 +160,11 @@ export default function CustomDrawerContent({ navigation, state }: any) {
           >
             <Icon name="bell-outline" size={22} color={activeRoute === 'Notifications' ? '#FBB614' : '#B0B0B0'} />
             <Text style={activeRoute === 'Notifications' ? styles.menuTextActive : styles.menuText}>Notifications</Text>
+            {unreadCount > 0 && (
+              <View style={styles.badgeContainer}>
+                <Text style={styles.badgeText}>{unreadCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
           <TouchableOpacity
             style={activeRoute === 'Historique' ? styles.menuItemActive : styles.menuItem}
@@ -151,11 +174,11 @@ export default function CustomDrawerContent({ navigation, state }: any) {
             <Text style={activeRoute === 'Historique' ? styles.menuTextActive : styles.menuText}>Historique</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={activeRoute === 'Securite' ? styles.menuItemActive : styles.menuItem}
-            onPress={() => navigation.navigate('Securite')}
+            style={activeRoute === 'SetNewPasswordScreen' ? styles.menuItemActive : styles.menuItem}
+            onPress={() => navigation.navigate('SetNewPasswordScreen')}
           >
-            <Icon name="shield-outline" size={22} color={activeRoute === 'Securite' ? '#FBB614' : '#B0B0B0'} />
-            <Text style={activeRoute === 'Securite' ? styles.menuTextActive : styles.menuText}>Sécurité</Text>
+            <Icon name="shield-outline" size={22} color={activeRoute === 'SetNewPasswordScreen' ? '#FBB614' : '#B0B0B0'} />
+            <Text style={activeRoute === 'SetNewPasswordScreen' ? styles.menuTextActive : styles.menuText}>Sécurité</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={activeRoute === 'Settings' ? styles.menuItemActive : styles.menuItem}
@@ -226,4 +249,19 @@ const styles = StyleSheet.create({
   upgradeTitle: { fontSize: 18, fontWeight: '700', color: '#fff' },
   upgradeSubtitle: { fontSize: 12, color: '#fff', marginTop: 4 },
   rocket: { width: 48, height: 48, position: 'absolute', right: 8, bottom: 8 },
+  badgeContainer: {
+    backgroundColor: '#FBB614',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+    paddingHorizontal: 5,
+  },
+  badgeText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
 }); 

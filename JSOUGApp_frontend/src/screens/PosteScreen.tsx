@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, ScrollView,
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScrollView as RNScrollView } from 'react-native';
+import { getNotifications } from '../services/api';
 
 const LICENSE_TYPES = [
   { type: 'A', icon: 'motorbike', label: 'Moto' },
@@ -25,6 +26,7 @@ export default function PosteScreen({ navigation }: any) {
   const [licenses, setLicenses] = useState<any[]>([]);
   const [role, setRole] = React.useState<string | null>(null);
   const [cardWidth, setCardWidth] = useState<number | null>(null);
+  const [unreadCount, setUnreadCount] = React.useState(0);
 
   useEffect(() => {
     const fetchProfileAndDetails = async () => {
@@ -54,6 +56,18 @@ export default function PosteScreen({ navigation }: any) {
 
   useEffect(() => {
     AsyncStorage.getItem('userRole').then(setRole);
+  }, []);
+
+  React.useEffect(() => {
+    const fetchUnread = async () => {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return;
+      const notifs = await getNotifications(token);
+      if (Array.isArray(notifs)) {
+        setUnreadCount(notifs.filter((n: any) => !n.is_read).length);
+      }
+    };
+    fetchUnread();
   }, []);
 
   const handlePost = async () => {
@@ -112,8 +126,14 @@ export default function PosteScreen({ navigation }: any) {
           <Icon name="menu" size={28} color="#222" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Créer une offre/poste</Text>
-        <TouchableOpacity onPress={() => Alert.alert('Notifications')} style={styles.iconButton}>
+        <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={styles.iconButton}>
           <Icon name="bell-outline" size={26} color="#222" />
+          {unreadCount > 0 && (
+            <View style={{
+              position: 'absolute', top: -4, right: -4, backgroundColor: '#FBB614', borderRadius: 10, minWidth: 18, height: 18, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4 }}>
+              <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 11 }}>{unreadCount}</Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 

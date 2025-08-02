@@ -206,3 +206,28 @@ export async function updateRole(userId: string, role: 'eleve' | 'moniteur') {
   });
   return res.json();
 } 
+
+const NOTIF_URL = 'http://localhost:5000/api/notifications';
+
+export async function getNotifications(token: string) {
+  const res = await fetch(NOTIF_URL, {
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  return res.json();
+}
+
+export async function markNotificationAsRead(id: number, token: string) {
+  const res = await fetch(`${NOTIF_URL}/${id}/read`, {
+    method: 'PATCH',
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  return res.json();
+}
+
+export async function markAllNotificationsAsRead(token: string) {
+  const res = await fetch(`${NOTIF_URL}/read-all`, {
+    method: 'PATCH',
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  return res.json();
+} 

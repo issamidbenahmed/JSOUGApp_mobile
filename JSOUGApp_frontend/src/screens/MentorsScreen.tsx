@@ -44,7 +44,10 @@ export default function MoniteursScreen({ navigation }: any) {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
-      <Text style={styles.title}>Tous les moniteurs</Text>
+      <TouchableOpacity onPress={() => navigation.goBack()} style={{ position: 'absolute', top: 24, left: 16, zIndex: 2 }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <Icon name="arrow-left" size={28} color="#222" />
+      </TouchableOpacity>
+      <Text style={[styles.title, { marginTop: 24, marginLeft: 48 }]}>Tous les moniteurs</Text>
       {loading ? (
         <ActivityIndicator style={{ flex: 1 }} size="large" color="#FFB800" />
       ) : (

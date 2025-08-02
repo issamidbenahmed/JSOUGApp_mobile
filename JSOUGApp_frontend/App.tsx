@@ -34,6 +34,8 @@ import MoniteurDashboardScreen from './src/screens/MoniteurDashboardScreen';
 import MesReservationsScreen from './src/screens/MesReservationsScreen';
 import MoniteurHistoriqueScreen from './src/screens/MoniteurHistoriqueScreen';
 import EleveHistoriqueScreen from './src/screens/EleveHistoriqueScreen';
+import NotificationsScreen from './src/screens/NotificationsScreen';
+import ContactUsScreen from './src/screens/ContactUsScreen';
 
 const Stack = createStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -100,6 +102,7 @@ function DrawerScreens() {
       <Drawer.Screen name="MoniteurDetailsScreen" component={MoniteurDetailsScreen} />
       <Drawer.Screen name="PosteScreen" component={PosteScreen} />
       <Drawer.Screen name="MoniteurInfoScreen" component={MoniteurInfoScreen} options={{ drawerItemStyle: { display: 'none' } }} />
+      <Drawer.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notifications' }} />
     </Drawer.Navigator>
   );
 }
@@ -127,6 +130,8 @@ export default function App() {
         <Stack.Screen name="ChatScreen" component={ChatScreen} />
         <Stack.Screen name="MoniteurInfoScreen" component={MoniteurInfoScreen} />
         <Stack.Screen name="MesPostes" component={MesPostesScreen} />
+        <Stack.Screen name="Notifications" component={NotificationsScreen} />
+<Stack.Screen name="ContactUsScreen" component={ContactUsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_URL = 'http://localhost:5000/api/moniteur';
@@ -13,6 +15,7 @@ interface Transaction {
 }
 
 const MoniteurHistoriqueScreen = () => {
+  const navigation = useNavigation();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -41,7 +44,12 @@ const MoniteurHistoriqueScreen = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Historique des transactions</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: 12, padding: 4 }}>
+          <Icon name="arrow-left" size={28} color="#222" />
+        </TouchableOpacity>
+        <Text style={styles.title}>Historique des transactions</Text>
+      </View>
       {loading ? <ActivityIndicator size="large" color="#FFA800" /> : (
         <FlatList
           data={transactions}

@@ -9,6 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { updateMoniteurDetails } from '../services/api';
 import * as FileSystem from 'expo-file-system';
+import { getNotifications } from '../services/api';
 
 const LICENSE_TYPES = [
   { type: 'A', icon: 'motorbike', label: 'Moto' },
@@ -40,6 +41,7 @@ export default function MoniteurInfoScreen() {
   const [certImages, setCertImages] = useState<string[]>([]);
   // Loading state
   const [isSaving, setIsSaving] = useState(false);
+  const [unreadCount, setUnreadCount] = React.useState(0);
 
   useEffect(() => {
     const fetchProfileAndDetails = async () => {
@@ -68,6 +70,18 @@ export default function MoniteurInfoScreen() {
       }
     };
     fetchProfileAndDetails();
+  }, []);
+
+  React.useEffect(() => {
+    const fetchUnread = async () => {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return;
+      const notifs = await getNotifications(token);
+      if (Array.isArray(notifs)) {
+        setUnreadCount(notifs.filter((n: any) => !n.is_read).length);
+      }
+    };
+    fetchUnread();
   }, []);
 
   // Sélection permis
@@ -286,9 +300,14 @@ export default function MoniteurInfoScreen() {
         <TouchableOpacity onPress={() => navigation.dispatch(DrawerActions.openDrawer())}>
           <Icon name="menu" size={28} color="#222" />
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => Alert.alert('Notifications')}>
+        <TouchableOpacity onPress={() => navigation.navigate('Notifications')}>
           <Icon name="bell-outline" size={28} color="#222" />
-          <View style={styles.notificationDot} />
+          {unreadCount > 0 && (
+            <View style={{
+              position: 'absolute', top: -4, right: -4, backgroundColor: '#FBB614', borderRadius: 10, minWidth: 18, height: 18, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4 }}>
+              <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 11 }}>{unreadCount}</Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
       <View style={styles.profileInfoContainer}>

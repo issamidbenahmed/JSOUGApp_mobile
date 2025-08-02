@@ -3,6 +3,7 @@ const cors = require('cors');
 const authRoutes = require('./routes/auth.routes');
 const moniteurRoutes = require('./routes/moniteur.routes');
 const adminRoutes = require('./routes/admin.routes');
+const notificationRoutes = require('./routes/notification.routes');
 const path = require('path');
 
 const app = express();
@@ -15,6 +16,7 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/moniteur', moniteurRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', notificationRoutes);
 console.log('Serving uploads from:', path.join(__dirname, '../uploads'));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 

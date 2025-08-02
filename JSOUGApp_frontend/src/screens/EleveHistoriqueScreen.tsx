@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {
   View,
   Text,
@@ -31,7 +32,7 @@ const EleveHistoriqueScreen = ({ navigation }: any) => {
 
   const fetchReservations = async () => {
     try {
-      const token = await AsyncStorage.getItem('token');
+      const token = await AsyncStorage.getItem('userToken');
       if (!token) {
         Alert.alert('Erreur', 'Token non trouvé');
         return;
@@ -132,7 +133,7 @@ const EleveHistoriqueScreen = ({ navigation }: any) => {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Text style={styles.backButtonText}>← Retour</Text>
+          <Icon name="arrow-left" size={28} color="#222" />
         </TouchableOpacity>
         <Text style={styles.title}>Historique des réservations</Text>
       </View>

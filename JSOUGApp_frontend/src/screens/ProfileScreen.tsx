@@ -71,7 +71,7 @@ export default function ProfileScreen({ navigation }: any) {
         <TouchableOpacity onPress={() => navigation.openDrawer && navigation.openDrawer()}>
           <Icon name="menu" size={28} color="#000" />
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => Alert.alert('Notifications')}>
+        <TouchableOpacity onPress={() => navigation.navigate('Notifications')}>
           <Icon name="notifications-none" size={28} color="#000" />
           <View style={styles.notificationDot} />
         </TouchableOpacity>
@@ -154,7 +154,7 @@ export default function ProfileScreen({ navigation }: any) {
         <MenuItem
           icon="phone-outline"
           title="Contact Us"
-          onPress={() => Alert.alert('Contact Us')}
+          onPress={() => navigation.navigate('ContactUsScreen')}
         />
         <MenuItem
           icon="logout"

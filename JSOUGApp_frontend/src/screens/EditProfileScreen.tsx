@@ -114,7 +114,7 @@ export default function EditProfileScreen() {
         <TouchableOpacity onPress={() => navigation.dispatch(DrawerActions.openDrawer())}>
           <Icon name="menu" size={28} color="#222" />
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => Alert.alert('Notifications')}>
+        <TouchableOpacity onPress={() => navigation.navigate('Notifications')}>
           <Icon name="bell-outline" size={28} color="#222" />
           <View style={styles.notificationDot} />
         </TouchableOpacity>

@@ -14,6 +14,7 @@ const Conversation = require('../models/conversation.model');
 const Message = require('../models/message.model');
 const Stripe = require('stripe');
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+const { createNotificationForUser } = require('./notification.controller');
 
 // Multer setup for avatar uploads
 const storage = multer.diskStorage({
@@ -101,6 +102,13 @@ exports.changePassword = async (req, res) => {
     const hash = await bcrypt.hash(newPassword, 10);
     // 4. Mettre à jour le mot de passe
     await db.query('UPDATE users SET password = ? WHERE id = ?', [hash, moniteurId]);
+    // Notifier l'utilisateur
+    await createNotificationForUser({
+      user_id: moniteurId,
+      type: 'password',
+      title: 'Mot de passe modifié',
+      body: 'Votre mot de passe a été modifié avec succès.'
+    });
     res.json({ message: 'Password changed successfully' });
   } catch (err) {
     console.error('Error in changePassword:', err);
@@ -297,6 +305,13 @@ exports.createBooking = async (req, res) => {
     }
     // La réservation est créée avec status: 'pending', commission: 10, payment_status: 'unpaid'
     const booking = await Booking.create(eleve_id, moniteur_id, poste_id, date, slot, hour);
+    // Notifier le moniteur
+    await createNotificationForUser({
+      user_id: moniteur_id,
+      type: 'reservation',
+      title: 'Nouvelle réservation',
+      body: `Un élève a réservé une séance pour le ${date} à ${hour}h.`
+    });
     res.json({ success: true, booking });
   } catch (err) {
     res.status(500).json({ error: 'Erreur serveur' });
@@ -347,9 +362,25 @@ exports.sendMessage = async (req, res) => {
   try {
     const msg = await Message.create(conversationId, sender_id, text);
     await Conversation.updateLastMessage(conversationId, text, new Date());
+    // Trouver l'autre participant à la conversation
+    const conv = await Conversation.getById(conversationId);
+    let receiver_id = null;
+    if (conv) {
+      receiver_id = conv.user1_id === sender_id ? conv.user2_id : conv.user1_id;
+    }
+    if (receiver_id) {
+      await createNotificationForUser({
+        user_id: receiver_id,
+        type: 'message',
+        title: 'Nouveau message',
+        body: 'Vous avez reçu un nouveau message.'
+      });
+    }
     res.json(msg);
   } catch (err) {
-    res.status(500).json({ error: 'Erreur serveur' });
+    console.error('Erreur sendMessage:', err);
+    console.error('Stack:', err.stack);
+    res.status(500).json({ error: 'Erreur serveur', details: err.message });
   }
 };
 
@@ -400,6 +431,13 @@ exports.respondToBooking = async (req, res) => {
     if (booking.status !== 'pending') return res.status(400).json({ error: 'Réservation déjà traitée' });
     if (action === 'reject') {
       await Booking.updateStatus(booking_id, 'rejected');
+      // Notifier l'élève du refus
+      await createNotificationForUser({
+        user_id: booking.eleve_id,
+        type: 'reservation',
+        title: 'Réservation refusée',
+        body: 'Votre réservation a été refusée par le moniteur.'
+      });
       return res.json({ success: true, status: 'rejected' });
     }
     // action === 'accept'
@@ -409,6 +447,13 @@ exports.respondToBooking = async (req, res) => {
       return res.status(400).json({ error: 'Solde insuffisant pour accepter la réservation.' });
     }
     await Booking.updateStatus(booking_id, 'accepted');
+    // Notifier l'élève de l'acceptation
+    await createNotificationForUser({
+      user_id: booking.eleve_id,
+      type: 'reservation',
+      title: 'Réservation acceptée',
+      body: 'Votre réservation a été acceptée par le moniteur.'
+    });
     return res.json({ success: true, status: 'accepted' });
   } catch (err) {
     res.status(500).json({ error: 'Erreur serveur' });
@@ -437,6 +482,19 @@ exports.confirmBookingPayment = async (req, res) => {
     await User.updateBalance(moniteur.id, newBalance);
     // Passer la réservation à completed, paid, et enregistrer le mode de paiement
     await Booking.completeBooking(booking_id, payment_method);
+    // Notifier le moniteur et l'élève
+    await createNotificationForUser({
+      user_id: moniteur.id,
+      type: 'paiement',
+      title: 'Réservation payée',
+      body: `Une réservation a été payée par l'élève.`
+    });
+    await createNotificationForUser({
+      user_id: eleve_id,
+      type: 'paiement',
+      title: 'Paiement confirmé',
+      body: `Votre paiement de réservation a bien été pris en compte.`
+    });
     res.json({ success: true, status: 'completed' });
   } catch (err) {
     res.status(500).json({ error: 'Erreur serveur' });
