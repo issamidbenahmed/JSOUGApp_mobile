@@ -27,8 +27,22 @@ exports.login = async (req, res) => {
   if (!user) return res.status(401).json({ error: 'Invalid credentials' });
   const valid = await bcrypt.compare(password, user.password);
   if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+  
+  console.log('Raw user data from database:', user);
+  console.log('isValidated value:', user.isValidated, 'type:', typeof user.isValidated);
+  console.log('isvalidated value (lowercase):', user.isvalidated, 'type:', typeof user.isvalidated);
+  
   const token = sign({ id: user.id, role: user.role });
-  res.json({ token, user: { id: user.id, fullName: user.fullName, email: user.email, role: user.role } });
+  res.json({ 
+    token, 
+    user: { 
+      id: user.id, 
+      fullName: user.fullName, 
+      email: user.email, 
+      role: user.role,
+      isvalidated: user.isValidated || 0
+    } 
+  });
 };
 
 exports.sendOtp = async (req, res) => {
@@ -104,5 +118,15 @@ exports.updateUserRole = async (req, res) => {
 exports.me = async (req, res) => {
   const user = await User.findById(req.user.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
-  res.json(user);
+  
+  // Ensure we return the validation status
+  res.json({
+    id: user.id,
+    fullName: user.fullName,
+    email: user.email,
+    role: user.role,
+    isvalidated: user.isValidated || 0,
+    state: user.state,
+    auth_provider: user.auth_provider
+  });
 }; 

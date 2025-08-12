@@ -3,6 +3,12 @@ const db = require('../config/db');
 const User = {
   async findByEmail(email) {
     const [rows] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
+    console.log('User model - Raw database rows:', rows);
+    console.log('User model - First row:', rows[0]);
+    if (rows[0]) {
+      console.log('User model - isValidated field:', rows[0].isValidated, 'type:', typeof rows[0].isValidated);
+      console.log('User model - isvalidated field (lowercase):', rows[0].isvalidated, 'type:', typeof rows[0].isvalidated);
+    }
     return rows[0];
   },
   async findById(id) {

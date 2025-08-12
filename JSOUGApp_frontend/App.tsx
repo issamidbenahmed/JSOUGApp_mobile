@@ -107,8 +107,12 @@ function DrawerScreens() {
   );
 }
 
+import { ClerkProvider } from '@clerk/clerk-expo';
+
 export default function App() {
   return (
+    <ClerkProvider publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY || "pk_test_Z3JlYXQtc3BhbmllbC00Ni5jbGVyay5hY2NvdW50cy5kZXYk"}>
+
     <NavigationContainer linking={linking}>
       <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Splash" component={SplashScreen} />
@@ -134,5 +138,6 @@ export default function App() {
 <Stack.Screen name="ContactUsScreen" component={ContactUsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
+    </ClerkProvider>
   );
 } 

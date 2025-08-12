@@ -1,11 +1,143 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Alert, GestureResponderEvent } from 'react-native';
+import { useOAuth, useAuth } from '@clerk/clerk-expo';
+import { View, StyleSheet, TouchableOpacity, Text, Alert, Platform } from 'react-native';
+
+// Type declarations for web
+declare global {
+  interface Window {
+    location: Location;
+  }
+}
+
 import { TextInput, Button, Checkbox } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { login } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { login } from '../services/api';
 
-const LoginScreen = ({ navigation }: any) => {
+const LoginScreen = ({ navigation }: { navigation: any }) => {
+  const { getToken, signOut } = useAuth();
+  
+  // For web testing, use the current origin as redirect URL
+  const redirectUrl = Platform.select({
+    web: `${window.location.origin}/auth/callback`,
+    default: 'exp://127.0.0.1:19000/--/auth/callback'
+  });
+
+  const { startOAuthFlow } = useOAuth({ 
+    strategy: 'oauth_google',
+    redirectUrl
+  });
+
+  const handleGoogleSignIn = async () => {
+    try {
+      console.log('Starting Google sign-in process...');
+      
+      // Try to sign out first to prevent 'already signed in' errors
+      try {
+        if (signOut) {
+          await signOut();
+          console.log('Signed out existing session');
+        }
+      } catch (err) {
+        console.log('No active session to sign out of');
+      }
+      
+      console.log('Starting OAuth flow...');
+      const startTime = Date.now();
+      
+      const result = await startOAuthFlow();
+      if (!result) {
+        throw new Error('Failed to start OAuth flow');
+      }
+      
+      const { createdSessionId, setActive } = result;
+      console.log('OAuth flow completed in', (Date.now() - startTime) / 1000, 'seconds');
+      
+      if (!createdSessionId) {
+        throw new Error('No session ID returned from OAuth flow');
+      }
+      
+      if (setActive) {
+        await setActive({ session: createdSessionId });
+      }
+      
+      // Wait a moment for the session to be fully established
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Get the token and sync with backend
+      const authToken = await getToken();
+      if (!authToken) {
+        throw new Error('Failed to get authentication token');
+      }
+      
+      // Sync with backend
+      const backendUrl = Platform.select({
+        web: 'http://localhost:5000/api/google-auth/sync-user',
+        android: 'http://10.0.2.2:5000/api/google-auth/sync-user',
+        default: 'http://localhost:5000/api/google-auth/sync-user'
+      });
+      
+      console.log('Syncing with backend at:', backendUrl);
+      const syncResponse = await fetch(backendUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!syncResponse.ok) {
+        const errorText = await syncResponse.text();
+        console.error('Backend sync error:', errorText);
+        throw new Error('Failed to sync with backend');
+      }
+      
+      const responseData = await syncResponse.json();
+      if (responseData.success) {
+        console.log('Successfully synced with backend');
+        
+        // Store the JWT token for backend API calls
+        if (responseData.jwtToken) {
+          await AsyncStorage.setItem('userToken', responseData.jwtToken);
+          console.log('JWT token stored for backend API calls');
+        }
+        
+        // Check if this is a new user (needs to choose role)
+        if (responseData.isNewUser) {
+          console.log('New user detected, redirecting to role choice');
+          navigation.navigate('RoleChoiceScreen' as never, { isGoogleAuth: true } as never);
+        } else {
+          console.log('Existing user, checking validation status');
+          
+                  // Check if user is a moniteur and needs validation
+        console.log('Response data for validation check:', {
+          role: responseData.role,
+          isvalidated: responseData.isvalidated,
+          type: typeof responseData.isvalidated
+        });
+        
+        // Convert isvalidated to number for comparison (handle both string and number types)
+        const isvalidated = parseInt(responseData.isvalidated) || 0;
+        
+        if (responseData.role === 'moniteur' && isvalidated === 0) {
+          console.log('Moniteur not validated, redirecting to validation screen');
+          navigation.navigate('WaitForValidationScreen' as never);
+        } else {
+          console.log('User validated or not a moniteur, redirecting to profile');
+          navigation.navigate('Profile' as never);
+        }
+        }
+      } else {
+        throw new Error(responseData.error || 'Failed to sync with backend');
+      }
+    } catch (error) {
+      console.error('Google sign-in error:', error);
+      Alert.alert(
+        'Error',
+        error instanceof Error ? error.message : 'An error occurred during sign-in'
+      );
+    }
+  };
   const [email, setEmail] = useState('example@gmail.com');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
@@ -13,21 +145,55 @@ const LoginScreen = ({ navigation }: any) => {
   const [loginFailed, setLoginFailed] = useState(false);
 
   const onLogin = async () => {
-    const res = await login(email, password);
-    if (res.token && res.user) {
-      setLoginFailed(false);
-      await AsyncStorage.setItem('userToken', res.token);
-      await AsyncStorage.setItem('userRole', res.user.role);
-      Alert.alert('Connexion réussie');
-      if (res.user.role === 'moniteur') {
-        navigation.replace('Profile');
+    try {
+      const response = await login(email, password);
+      
+      if (response.token) {
+        setLoginFailed(false);
+        await AsyncStorage.setItem('userToken', response.token);
+        
+        // Store user role if available in the response
+        if (response.user?.role) {
+          await AsyncStorage.setItem('userRole', response.user.role);
+        }
+        
+        // Store remember me preference
+        if (rememberMe) {
+          await AsyncStorage.setItem('userEmail', email);
+        } else {
+          await AsyncStorage.removeItem('userEmail');
+        }
+        
+        // Navigate based on user role and validation status
+        const role = response.user?.role || 'eleve';
+        
+        // Check if user is a moniteur and needs validation
+        console.log('Regular login validation check:', {
+          role: role,
+          isvalidated: response.user?.isvalidated,
+          type: typeof response.user?.isvalidated
+        });
+        
+        // Convert isvalidated to number for comparison (handle both string and number types)
+        const isvalidated = parseInt(response.user?.isvalidated) || 0;
+        
+        if (role === 'moniteur' && isvalidated === 0) {
+          console.log('Moniteur not validated, redirecting to validation screen');
+          navigation.navigate('WaitForValidationScreen' as never);
+        } else {
+          console.log('User validated or not a moniteur, redirecting to profile');
+          navigation.navigate('Profile' as never, { userRole: role } as never);
+        }
       } else {
-        navigation.replace('Profile');
+        throw new Error(response.error || 'Invalid credentials');
       }
-    } else {
+    } catch (error) {
+      console.error('Login error:', error);
       setLoginFailed(true);
-      setRememberMe(false);
-      Alert.alert('Erreur', res.error || 'Connexion impossible');
+      Alert.alert(
+        'Erreur de connexion',
+        error instanceof Error ? error.message : 'Une erreur est survenue lors de la connexion'
+      );
     }
   };
 
@@ -116,7 +282,7 @@ const LoginScreen = ({ navigation }: any) => {
       <Button
         mode="outlined"
         icon={({ size }) => <Icon name="google" size={size} color="#EA4335" />}
-        onPress={() => Alert.alert('Continue with Google')}
+        onPress={handleGoogleSignIn}
         style={styles.googleButton}
         contentStyle={{ height: 50, justifyContent: 'center' }}
         labelStyle={{ color: '#000' }}

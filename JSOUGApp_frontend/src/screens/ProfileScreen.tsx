@@ -15,6 +15,7 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
+import { useAuth } from '@clerk/clerk-expo';
 
 // TODO: Replace with your real token management
 const getToken = async () => {
@@ -30,8 +31,26 @@ export default function ProfileScreen({ navigation }: any) {
 
   const fetchProfile = async () => {
     setLoading(true);
-    const token = await getToken();
     try {
+      // Try to get JWT token from AsyncStorage first (for Google auth users)
+      let token = await AsyncStorage.getItem('userToken');
+      
+      // If no JWT token, fall back to Clerk token
+      if (!token) {
+        token = await getToken();
+      }
+      
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+      
+      // Get user role for display purposes
+      const userRole = await AsyncStorage.getItem('userRole');
+      console.log('ProfileScreen - User role:', userRole);
+      
+      // Note: Validation should already be checked during login/authentication
+      // If user reaches this screen, they should already be validated
+      
       const res = await axios.get('http://localhost:5000/api/moniteur/profile', {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -55,9 +74,23 @@ export default function ProfileScreen({ navigation }: any) {
   const onEditPress = () => {
     navigation.navigate('EditProfile');
   };
-  const onLogoutPress = () => {
-    // TODO: Clear token and navigate to login
-    navigation.replace('LoginScreen');
+  const { signOut } = useAuth();
+
+  const onLogoutPress = async () => {
+    try {
+      // Sign out from Clerk (this will also handle Google session)
+      await signOut();
+      // Clear any local storage including JWT token
+      await AsyncStorage.clear();
+      // Navigate to login screen
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'LoginScreen' }],
+      });
+    } catch (err) {
+      console.error('Error signing out:', err);
+      Alert.alert('Error', 'Failed to sign out. Please try again.');
+    }
   };
 
   if (loading) {

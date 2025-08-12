@@ -1,4 +1,44 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 const API_URL = 'http://localhost:5000/api/auth'; // Remplace par l'IP de ton backend si besoin
+
+// Helper function to get stored JWT token
+export async function getStoredToken(): Promise<string | null> {
+  try {
+    const token = await AsyncStorage.getItem('userToken');
+    return token;
+  } catch (error) {
+    console.error('Error getting stored token:', error);
+    return null;
+  }
+}
+
+// Helper function to make authenticated requests
+export async function authenticatedRequest(url: string, options: RequestInit = {}) {
+  const token = await getStoredToken();
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+  
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`,
+    ...options.headers,
+  };
+  
+  const response = await fetch(url, {
+    ...options,
+    headers,
+  });
+  
+  if (response.status === 401) {
+    // Token expired or invalid, clear it
+    await AsyncStorage.removeItem('userToken');
+    throw new Error('Authentication expired. Please sign in again.');
+  }
+  
+  return response;
+}
 
 export async function register(data: any) {
   const res = await fetch(`${API_URL}/register`, {
@@ -76,9 +116,14 @@ export async function changePassword(currentPassword: string, newPassword: strin
 }
 
 // Récupérer tous les détails du moniteur
-export async function getMoniteurDetails(token: string) {
+export async function getMoniteurDetails(token?: string) {
+  const authToken = token || await getStoredToken();
+  if (!authToken) {
+    throw new Error('No authentication token provided or found');
+  }
+  
   const res = await fetch('http://localhost:5000/api/moniteur/details', {
-    headers: { 'Authorization': `Bearer ${token}` },
+    headers: { 'Authorization': `Bearer ${authToken}` },
   });
   return res.json();
 }
